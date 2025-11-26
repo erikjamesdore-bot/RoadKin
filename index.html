@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoadKin – Adventure Traveller Rescue Network</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#111; color:#fff; margin:0; padding:0; }
+    #app { max-width:480px; margin:40px auto; padding:20px; }
+    h1 { text-align:center; color:#c00; }
+    input, textarea, button { width:100%; padding:12px; margin:8px 0; border-radius:8px; border:none; font-size:16px; }
+    button { background:#c00; color:white; cursor:pointer; font-weight:bold; }
+    button.bigbtn { padding:30px; font-size:24px; margin:30px 0; }
+    .sos { background:#b00; animation:pulse 2s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,0,0,0.7)} 70%{box-shadow:0 0 0 30px rgba(255,0,0,0)} 100%{box-shadow:0 0 0 0 rgba(255,0,0,0)} }
+    .helper { background:#222; padding:15px; margin:10px 0; border-radius:10px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>RoadKin</h1>
+    <div id="login" class="screen">
+      <input type="text" id="username" placeholder="Your name or nickname" required>
+      <button onclick="login()">Enter RoadKin</button>
+    </div>
+
+    <div id="main" class="screen hidden">
+      <button class="bigbtn sos" onclick="sendSOS()">⚠️ I NEED HELP NOW</button>
+      <button onclick="toggleMode()">Switch to Helper mode</button>
+      
+      <h2>Nearby helpers (<span id="count">0</span>)</h2>
+      <div id="helpers"></div>
+    </div>
+
+    <div id="helperMode" class="screen hidden">
+      <h2>I can help!</h2>
+      <textarea id="offer" placeholder="e.g. garage, welder, spare room, speaks Spanish, cold beer..."></textarea><br>
+      <label><input type="checkbox" id="availableNow"> Available right now</label><br>
+      <button onclick="saveHelperProfile()">Save my profile</button>
+      <button onclick="toggleMode()">Back to rider mode</button>
+    </div>
+  </div>
+
+  <script>
+    let user = null;
+    let helpers = [
+      {"name":"Juan – Patagonia","lat":-49.302,"lon":-72.886,"offer":"Welder, barn, cold beer, speaks English","availableNow":true},
+      {"name":"Amina & family – Morocco","lat":28.5,"lon":-9.6,"offer":"Garage, dinner, floor to sleep","availableNow":true},
+      {"name":"Mick the mechanic – Australia","lat":-25.0,"lon":133.0,"offer":"Full workshop + hoist","availableNow":true},
+      {"name":"Carlos – Bolivia salt flats","lat":-20.133,"lon":-67.489,"offer":"Tyre repair, camping spot","availableNow":true},
+      {"name":"Lena – Norway","lat":62.5,"lon":7.2,"offer":"Warm cabin, tools, coffee","availableNow":true},
+      {"name":"Raj – Rajasthan, India","lat":27.0,"lon":73.0,"offer":"Motorcycle shop + chai","availableNow":true},
+      {"name":"Diego – Baja California","lat":28.0,"lon":-113.5,"offer":"Shade, water, welding","availableNow":true},
+      {"name":"Sophie – French Alps","lat":45.0,"lon":6.0,"offer":"Chalet, fondue, metric tools","availableNow":true},
+      {"name":"Omar – Jordan","lat":30.5,"lon":36.0,"offer":"Desert camp, 4×4 recovery","availableNow":true},
+      {"name":"Tashi – Himalayas","lat":32.2,"lon":77.2,"offer":"Homestay, Enfield parts","availableNow":true},
+      {"name":"Kim – Vietnam","lat":16.0,"lon":107.0,"offer":"Motorbike hostel + tools","availableNow":true},
+      {"name":"Pedro – Portugal","lat":39.5,"lon":-8.0,"offer":"Farmhouse, BBQ, spanners","availableNow":true}
+    ];
+
+    function login() {
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Enter your name");
+      user = { name, lat: null, lon: null, isHelper: false, offer: "", availableNow: false };
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("main").classList.remove("hidden");
+      renderHelpers();
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          user.lat = pos.coords.latitude;
+          user.lon = pos.coords.longitude;
+          renderHelpers(); // Refresh with real location
+        });
+      } else {
+        alert("GPS not supported—distances will be approximate.");
+      }
+    }
+
+    function renderHelpers() {
+      const list = document.getElementById("helpers");
+      list.innerHTML = "";
+      const nearby = helpers
+        .filter(h => h.availableNow)
+        .map(h => ({...h, dist: user.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
+        .sort((a,b) => a.dist - b.dist)
+        .slice(0,20);
+
+      document.getElementById("count").textContent = nearby.length;
+
+      nearby.forEach(h => {
+        const div = document.createElement("div");
+        div.className = "helper";
+        div.innerHTML = `
+          <strong>${h.name}</strong> – ${h.dist<999 ? Math.round(h.dist)+" km" : "far"}<br>
+          ${h.offer}<br>
+          <button onclick="callHelper('${h.phone||""}')">Call / WhatsApp</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function sendSOS() {
+      if (!user.lat) return alert("Waiting for GPS… Try outside or use a fake location for testing.");
+      const msg = `⚠️ ROADKIN SOS ⚠️\n${user.name} needs help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nMessage: (add your problem here)`;
+      const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(wa, "_blank");
+      alert("SOS ready—paste into WhatsApp groups or share directly!");
+    }
+
+    function toggleMode() {
+      document.getElementById("main").classList.toggle("hidden");
+      document.getElementById("helperMode").classList.toggle("hidden");
+    }
+
+    function saveHelperProfile() {
+      user.isHelper = true;
+      user.offer = document.getElementById("offer").value || "Can offer tools & a beer";
+      user.availableNow = document.getElementById("availableNow").checked;
+      alert("Profile saved locally! In a full version, this syncs to the network.");
+      // For demo, add to helpers list
+      helpers.push({name: user.name, lat: user.lat, lon: user.lon, offer: user.offer, availableNow: user.availableNow});
+    }
+
+    // Simple distance calc
+    function haversine(lat1, lon1, lat2, lon2) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371; // km
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function callHelper(num) {
+      if (num) window.open(`tel:${num}`);
+      else alert("Helper didn’t list a phone—use WhatsApp for now!");
+    }
+  </script>
+</body>
+</html>
