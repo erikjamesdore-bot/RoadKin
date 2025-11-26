@@ -8,8 +8,8 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#c00">
   <style>
-    body {font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0;transition:background .3s,color .3s}
-    @media (prefers-color-scheme:light){body{background:#fff;color:#000}}
+    body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0;transition:background .3s,color .3s}
+    @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
     h1{text-align:center;color:#c00}
     input,textarea,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:none;font-size:16px;box-sizing:border-box}
@@ -18,10 +18,10 @@
     .sos{background:#b00;animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
     .helper{background:#222;padding:15px;margin:10px 0;border-radius:10px}
-    @media (prefers-color-scheme:light){.helper{background:#f0f0f0}}
+    @media(prefers-color-scheme:light){.helper{background:#f0f0f0}}
     .hidden{display:none}
     #install{background:#222}
-    @media (prefers-color-scheme:light){#install{background:#ddd;color:#000}}
+    @media(prefers-color-scheme:light){#install{background:#ddd;color:#000}}
     footer{text-align:center;margin-top:40px;font-size:14px;opacity:0.7}
     .kofi{color:#c00;font-weight:bold}
   </style>
@@ -53,33 +53,139 @@
     </div>
 
     <footer>
-      Built for the road less traveled
-      <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
+      Built for the road less traveled • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
       <br><br>
-      ❤️ Love RoadKin?
-      <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
+      ❤️ Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
     </footer>
   </div>
 
   <script>
-    /* ← exact same script you already have → */
     let user = null;
     let deferredPrompt = null;
-    let helpers = [ /* your full list stays here */ ];
 
-    window.addEventListener('beforeinstallprompt', e => {e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block'});
-    async function installApp(){if(deferredPrompt){deferredPrompt.prompt();const o=await deferredPrompt.userChoice;if(o.outcome==='accepted')deferredPrompt=null}}
-    if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+    const helpers = [
+      {"name":"Juan – Patagonia","lat":-49.302,"lon":-72.886,"offer":"Welder, barn, cold beer, speaks English","availableNow":true},
+      {"name":"Amina & family – Morocco","lat":28.5,"lon":-9.6,"offer":"Garage, dinner, floor to sleep","availableNow":true},
+      {"name":"Mick the mechanic – Australia","lat":-25.0,"lon":133.0,"offer":"Full workshop + hoist","availableNow":true},
+      {"name":"Carlos – Bolivia salt flats","lat":-20.133,"lon":-67.489,"offer":"Tyre repair, camping spot","availableNow":true},
+      {"name":"Lena – Norway","lat":62.5,"lon":7.2,"offer":"Warm cabin, tools, coffee","availableNow":true},
+      {"name":"Raj – Rajasthan, India","lat":27.0,"lon":73.0,"offer":"Motorcycle shop + chai","availableNow":true},
+      {"name":"Diego – Baja California","lat":28.0,"lon":-113.5,"offer":"Shade, water, welding","availableNow":true},
+      {"name":"Sophie – French Alps","lat":45.0,"lon":6.0,"offer":"Chalet, fondue, metric tools","availableNow":true},
+      {"name":"Omar – Jordan","lat":30.5,"lon":36.0,"offer":"Desert camp, 4×4 recovery","availableNow":true},
+      {"name":"Tashi – Himalayas","lat":32.2,"lon":77.2,"offer":"Homestay, Enfield parts","availableNow":true},
+      {"name":"Kim – Vietnam","lat":16.0,"lon":107.0,"offer":"Motorbike hostel + tools","availableNow":true},
+      {"name":"Pedro – Portugal","lat":39.5,"lon":-8.0,"offer":"Farmhouse, BBQ, spanners","availableNow":true},
+      {"name":"Elena – Andes, Chile","lat":-33.0,"lon":-70.0,"offer":"Bike shop, empanadas, English","availableNow":true},
+      {"name":"Finn – Iceland","lat":64.1,"lon":-21.9,"offer":"Hot springs recovery, tools","availableNow":true}
+    ];
 
-    function login(){ /* unchanged */ }
-    function renderHelpers(){ /* unchanged */ }
-    function sendSOS(){ /* unchanged */ }
-    function toggleMode(){document.getElementById("main").classList.toggle("hidden");document.getElementById("helperMode").classList.toggle("hidden")}
-    function saveHelperProfile(){ /* unchanged */ }
-    function haversine(/* unchanged */){}
-    function callHelper(num){if(num)window.open(`tel:${num}`);else alert("No phone listed — use WhatsApp SOS!")}
+    // Load any previously saved helpers from this device
+    function loadSavedHelpers() {
+      const saved = localStorage.getItem('roadkinHelpers');
+      if (saved) helpers.push(...JSON.parse(saved));
+    }
 
-    /* ← paste your full helpers array + all functions you already have here → */
+    // PWA install button
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install').style.display = 'block';
+    });
+    async function installApp() {
+      if (!deferredPrompt) return alert('Already installed or not supported');
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') deferredPrompt = null;
+    }
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+    function login() {
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Enter your name");
+      user = { name, lat: null, lon: null, isHelper: false, offer: "", availableNow: false };
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("main").classList.remove("hidden");
+      loadSavedHelpers();
+      renderHelpers();
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          user.lat = pos.coords.latitude;
+          user.lon = pos.coords.longitude;
+          renderHelpers();
+        }, () => alert("GPS denied – distances will be approximate"));
+      }
+    }
+
+    function renderHelpers() {
+      const list = document.getElementById("helpers");
+      list.innerHTML = "";
+      const nearby = helpers
+        .filter(h => h.availableNow)
+        .map(h => ({...h, dist: user?.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
+        .sort((a,b) => a.dist - b.dist)
+        .slice(0,20);
+
+      document.getElementById("count").textContent = nearby.length;
+
+      nearby.forEach(h => {
+        const div = document.createElement("div");
+        div.className = "helper";
+        div.innerHTML = `
+          <strong>${h.name}</strong> – ${h.dist < 999 ? Math.round(h.dist)+" km away" : "Far off-road"}<br>
+          ${h.offer}<br>
+          <button onclick="callHelper('${h.phone||''}')">Call / WhatsApp</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function sendSOS() {
+      if (!user?.lat) return alert("Waiting for GPS… step outside or allow location.");
+      const msg = `ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      alert("SOS ready – paste into WhatsApp groups!");
+    }
+
+    function toggleMode() {
+      document.getElementById("main").classList.toggle("hidden");
+      document.getElementById("helperMode").classList.toggle("hidden");
+    }
+
+    function saveHelperProfile() {
+      if (!user) return alert("Log in first!");
+      user.offer = document.getElementById("offer").value || "Can offer tools & a beer";
+      user.availableNow = document.getElementById("availableNow").checked;
+
+      const newHelper = {
+        name: `${user.name} – ${user.name}'s spot`,
+        lat: user.lat || 0,
+        lon: user.lon || 0,
+        offer: user.offer,
+        availableNow: user.availableNow
+      };
+
+      helpers.push(newHelper);
+      localStorage.setItem('roadkinHelpers', JSON.stringify(helpers.filter(h => h.name.includes(user.name))));
+      alert("Profile saved on this device forever!");
+      renderHelpers();
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371;
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function callHelper(num) {
+      if (num) window.open(`tel:${num}`);
+      else alert("No phone listed – use WhatsApp SOS!");
+    }
   </script>
 </body>
 </html>
