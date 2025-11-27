@@ -16,9 +16,9 @@
   .bigbtn{padding:32px;font-size:24px}
   .sos{background:#b00;animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px transparent}100%{box-shadow:0 0 0 0 transparent}}
-  .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.5}
+  .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.6}
   .hidden{display:none}
-  .contact-btn{margin-top:8px;padding:10px;font-size:14px;border-radius:8px;background:#333}
+  .contact-btn{margin-top:8px;padding:10px;font-size:14px;border-radius:8px;background:#333;display:inline-block}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
   .switch{position:relative;display:inline-block;width:80px;height:42px}
   .switch input{opacity:0;width:0;height:0}
@@ -39,7 +39,7 @@
   </div>
 
   <div id="main" class="screen hidden">
-    <div class="user-bar" onclick="toggleEdit()">
+    <div class="user-bar" onclick="openEdit()">
       <div class="user-name">Hi, <span id="displayName"></span></div>
       <div class="coords" id="coordsDisplay">Getting location…</div>
       <div class="toggle-row">
@@ -60,20 +60,20 @@
 
   <div id="edit" class="screen hidden">
     <h2>What can you offer?</h2>
-    <textarea id="offer" rows="5" placeholder="garage, tools, spare room, beer, languages…"></textarea>
-    <input type="text" id="contact" placeholder="WhatsApp, email, Signal… (optional)">
-    <button class="bigbtn" onclick="toggleEdit()" style="background:#900;margin-top:20px">← Back</button>
+    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room, welding, Spanish…"></textarea>
+    <input type="text" id="contact" placeholder="WhatsApp, email, Signal (optional)">
+    <button class="bigbtn" onclick="openEdit()" style="background:#900;margin-top:20px">← Back</button>
   </div>
 </div>
 
 <script>
-let user = { name: "", lat: null, lon: null };
+let user = { name: "", lat: null, lon: null, offer: "", contact: "" };
 let helpers = [];
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
 function saveUser(){ localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s);return true} return false; }
+function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
 
 async function loadHelpers(){
   try{
@@ -94,8 +94,16 @@ async function loadHelpers(){
       };
     }).filter(Boolean);
 
-    // Update toggle state from sheet
+    // Restore my offer/contact from localStorage if not in sheet yet
     const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
+    if(me){
+      user.offer = me.offer;
+      user.contact = me.contact;
+      document.getElementById("offer").value = me.offer;
+      document.getElementById("contact").value = me.contact;
+    }
+
+    // Update toggle from sheet
     const toggle = document.getElementById("availToggle");
     const status = document.getElementById("statusText");
     if(me && me.availableNow){
@@ -166,6 +174,11 @@ function sendToSheet(available){
   const offer = document.getElementById("offer").value.trim() || "Can help";
   const contact = document.getElementById("contact").value.trim();
 
+  // Save to localStorage too
+  user.offer = offer;
+  user.contact = contact;
+  saveUser();
+
   const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
     'entry.2131123748=' + encodeURIComponent(user.name) +
     '&entry.1563978452=' + user.lat.toFixed(6) +
@@ -184,14 +197,14 @@ document.getElementById("availToggle").onchange = function(){
   if(sendToSheet(state)){
     document.getElementById("statusText").textContent = state ? "ONLINE" : "Offline";
     document.getElementById("statusText").style.color = state ? "#0f0" : "#aaa";
-    alert(state ? "You are now LIVE! Thank you" : "You are now offline");
-    setTimeout(loadHelpers, 4000);
+    alert(state ? "You are LIVE worldwide! Thank you" : "You are offline");
+    setTimeout(loadHelpers, 5000);
   } else {
-    this.checked = !state; // revert toggle if no location
+    this.checked = !state;
   }
 };
 
-function toggleEdit(){
+function openEdit(){
   document.getElementById("main").classList.toggle("hidden");
   document.getElementById("edit").classList.toggle("hidden");
 }
@@ -203,6 +216,8 @@ function login(){
   document.getElementById("login").classList.add("hidden");
   document.getElementById("main").classList.remove("hidden");
   document.getElementById("displayName").textContent = n;
+  document.getElementById("offer").value = user.offer || "";
+  document.getElementById("contact").value = user.contact || "";
   updateCoords();
   loadHelpers();
 
@@ -234,9 +249,11 @@ function sendSOS(){
 }
 
 function haversine(lat1,lon1,lat2,lon2){
-  const toRad=x=>x*Math.PI/180; const R=6371;
-  const dLat=toRad(lat2-lat1); const dLon=toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const toRad = x => x * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
@@ -245,6 +262,8 @@ window.onload = () => {
     document.getElementById("login").classList.add("hidden");
     document.getElementById("main").classList.remove("hidden");
     document.getElementById("displayName").textContent = user.name;
+    document.getElementById("offer").value = user.offer || "";
+    document.getElementById("contact").value = user.contact || "";
     updateCoords();
   }
   loadHelpers();
