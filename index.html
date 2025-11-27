@@ -32,7 +32,6 @@
     .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
     input:checked + .slider{background:#0a0}
     input:checked + .slider:before{transform:translateX(32px)}
-    .logout{background:#900;font-size:14px;padding:10px;margin-top:10px}
   </style>
 </head>
 <body>
@@ -46,10 +45,9 @@
 
     <div id="main" class="screen hidden">
       <div class="user-bar" onclick="toggleEditMode()">
-        <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to edit help status</div>
+        <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to help</div>
       </div>
 
-      <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install (offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
       <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
 
@@ -59,15 +57,14 @@
 
     <div id="editMode" class="screen hidden">
       <h2>What can you offer?</h2>
-      <textarea id="offer" rows="4" placeholder="garage, tools, beer, languages…"></textarea>
-      <input type="text" id="contact" placeholder="Contact (WhatsApp, email…)">
+      <textarea id="offer" rows="4" placeholder="garage, beer, tools…"></textarea>
+      <input type="text" id="contact" placeholder="WhatsApp / email (optional)">
       <div class="toggle-row">
         <div>Available right now</div>
         <label class="switch"><input type="checkbox" id="availableNow" checked><span class="slider"></span></label>
       </div>
       <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
-      <button class="bigbtn" onclick="goOffline()" style="background:#900">GO OFFLINE</button>
-      <button class="logout" onclick="logout()">Log out</button>
+      <button class="bigbtn" onclick="toggleEditMode()" style="background:#900">Cancel</button>
     </div>
   </div>
 
@@ -78,33 +75,36 @@
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-    function loadUser() { const s = localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
+    function loadUser() { const s = localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s);return true} return false; }
 
     async function loadHelpers() {
       try {
         const r = await fetch(SHEET_CSV + '&t=' + Date.now());
         const text = await r.text();
-        const rows = text.split('\n').slice(1).filter(r => r.trim());
+        const raw = text.replace(/\r\n|\r|\n/g, '');   // one long string
+        const entries = raw.match(/[A-Za-z0-9._%+-]+(?=-?\d+\.?-?\d*)/g) || [];
 
-        helpers = rows.map(row => {
-          // NEW BULLETPROOF PARSER — works with spaces, no commas, anything
-          const parts = row.trim().match(/[\w.@+-]+|"(.*?)"|\S+/g) || [];
-          if (parts.length < 6) return null;
+        helpers = [];
+        for (let i = 0; i < entries.length; i++) {
+          const name = entries[i];
+          const latStr = raw.split(name)[1]?.match(/-?\d+\.?\d*/)?.[0];
+          const lonStr = raw.split(latStr)[1]?.match(/-?\d+\.?\d*/)?.[0];
+          const offerEnd = raw.indexOf('yes', raw.indexOf(lonStr) + lonStr.length);
+          const offer = raw.substring(raw.indexOf(lonStr) + lonStr.length, offerEnd).replace(/yes.*/i, '').trim();
+          const rest = raw.substring(offerEnd);
+          const available = /yes/i.test(rest.split(name)[0] || '');
 
-          const name = parts[0];
-          const lat = parseFloat(parts[1]) || 0;
-          const lon = parseFloat(parts[2]) || 0;
-          const offer = parts[3] || "Can help";
-          const contact = parts[4] || "";
-          const available = (parts[5] || "").toLowerCase() === "yes" || (parts[5] || "").toLowerCase() === "true";
+          const lat = parseFloat(latStr);
+          const lon = parseFloat(lonStr);
 
-          if (!name || !lat || !lon) return null;
-          return { name, lat, lon, offer, contact, availableNow: available };
-        }).filter(Boolean);
+          if (name && !isNaN(lat) && !isNaN(lon)) {
+            helpers.push({ name, lat, lon, offer: offer || "Can help", contact: "", availableNow: available });
+          }
+        }
 
         renderHelpers();
       } catch(e) {
-        document.getElementById("helpers").innerHTML = "<i>No internet – last known helpers</i>";
+        document.getElementById("helpers").innerHTML = "<i>No internet</i>";
       }
     }
 
@@ -113,22 +113,15 @@
       const nearby = helpers
         .filter(h => h.availableNow)
         .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
-        .sort((a,b) => a.dist - b.dist)
-        .slice(0,30);
+        .sort((a,b) => a.dist - b.dist);
 
       document.getElementById("count").textContent = nearby.length;
-      if (!nearby.length) { list.innerHTML = "<i>Be the first to help!</i>"; return; }
+      if (!nearby.length) { list.innerHTML = "<i>No one online yet – tap your name to help!</i>"; return; }
 
       nearby.forEach(h => {
         const d = document.createElement("div"); d.className="helper";
-        const dist = h.dist < 9999 ? Math.round(h.dist)+" km" : "Far off-road";
-        let contact = h.contact ? `<br>Contact: ${h.contact} ` : "";
-        if (h.contact?.includes('@')) contact += `<button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
-        else if (/^\+?\d+$/.test(h.contact.replace(/\D/g,''))) {
-          const num = h.contact.replace(/\D/g,'');
-          contact += `<button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
-        }
-        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
+        const dist = h.dist < 9999 ? Math.round(h.dist)+" km away" : "Far off-road";
+        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}`;
         list.appendChild(d);
       });
     }
@@ -149,13 +142,6 @@
     function toggleEditMode() {
       document.getElementById("main").classList.toggle("hidden");
       document.getElementById("editMode").classList.toggle("hidden");
-
-      const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-      if (me) {
-        document.getElementById("offer").value = me.offer;
-        document.getElementById("contact").value = me.contact;
-        document.getElementById("availableNow").checked = me.availableNow;
-      }
     }
 
     function manualLocation() {
@@ -180,7 +166,7 @@
       if (!user.lat) return alert("Location required");
       const offer = document.getElementById("offer").value.trim() || "Can help";
       const contact = document.getElementById("contact").value.trim();
-      const available = document.getElementById("availableNow").checked ? "Yes" : "No";
+      const available = document.getElementById("availableNow").checked ? "yes" : "no";
 
       const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
         'entry.2131123748=' + encodeURIComponent(user.name) +
@@ -188,18 +174,13 @@
         '&entry.1612978471=' + user.lon.toFixed(6) +
         '&entry.1742973672=' + encodeURIComponent(offer) +
         '&entry.1366145812=' + available +
-        (contact ? '&entry.XXXXXX=' + encodeURIComponent(contact) : '') +
         '&usp=pp_url&submit=Submit';
 
       fetch(url,{method:'GET',mode:'no-cors'});
-      alert("You are now LIVE!");
+      alert("You are LIVE! Thank you");
       toggleEditMode();
       setTimeout(loadHelpers,4000);
     }
-
-    function goOffline() { alert("You are now offline"); toggleEditMode(); setTimeout(loadHelpers,3000); }
-
-    function logout() { if(confirm("Log out?")){localStorage.clear();location.reload();} }
 
     function haversine(lat1,lon1,lat2,lon2){
       const toRad=x=>x*Math.PI/180; const R=6371;
