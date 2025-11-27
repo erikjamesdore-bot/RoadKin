@@ -24,7 +24,7 @@
     @media(prefers-color-scheme:light){#install{background:#ddd;color:#000}}
     footer{text-align:center;margin-top:40px;font-size:14px;opacity:0.7}
     .kofi{color:#c00;font-weight:bold}
-    .contact-btn{margin:5px 0;padding:10px;font-size:14px}
+    .contact-btn{margin:4px 0;padding:10px;font-size:14px;width:auto;display:inline-block}
   </style>
 </head>
 <body>
@@ -56,7 +56,7 @@
     <footer>
       Built for the road less traveled • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
       <br><br>
-      ❤️ Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
+      Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
     </footer>
   </div>
 
@@ -65,7 +65,7 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // YOUR LATEST CLEAN HELPERS TAB (with Contact column)
+    // CLEAN HELPERS TAB – correct column order (Name, Lat, Lon, Offer, Contact, Available Now)
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
@@ -77,8 +77,9 @@
         helpers = rows.map(row => {
           const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
           if (c.length < 6) return null;
+          if (!c[0]) return null;                    // skip if no name
           return {
-            name: c[0] || "Anonymous rider",
+            name: c[0],
             lat: parseFloat(c[1]) || 0,
             lon: parseFloat(c[2]) || 0,
             offer: c[3] || "Can help",
@@ -134,7 +135,7 @@
       if (!user?.lat) return alert("Waiting for GPS…");
       const msg=`ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
-      alert("SOS ready – paste into WhatsApp groups!");
+      alert("SOS ready – share it!");
     }
 
     function toggleMode() {
