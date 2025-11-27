@@ -24,6 +24,7 @@
     @media(prefers-color-scheme:light){#install{background:#ddd;color:#000}}
     footer{text-align:center;margin-top:40px;font-size:14px;opacity:0.7}
     .kofi{color:#c00;font-weight:bold}
+    .contact-btn{margin:5px 0;padding:10px;font-size:14px}
   </style>
 </head>
 <body>
@@ -64,7 +65,7 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // CLEAN LIVE SHEET (no timestamp column)
+    // YOUR LATEST CLEAN HELPERS TAB (with Contact column)
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
@@ -75,13 +76,14 @@
         const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
           const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
-          if (c.length < 5) return null;
+          if (c.length < 6) return null;
           return {
             name: c[0] || "Anonymous rider",
             lat: parseFloat(c[1]) || 0,
             lon: parseFloat(c[2]) || 0,
             offer: c[3] || "Can help",
-            availableNow: c[4].toLowerCase() === "yes"
+            contact: c[4] || "",
+            availableNow: c[5].toLowerCase() === "yes"
           };
         }).filter(Boolean);
         renderHelpers();
@@ -111,16 +113,28 @@
       document.getElementById("count").textContent = nearby.length;
       nearby.forEach(h=>{
         const d=document.createElement("div"); d.className="helper";
-        d.innerHTML=`<strong>${h.name}</strong> – ${h.dist<999?Math.round(h.dist)+" km": "Far off-road"}<br>${h.offer}<br><button onclick="callHelper()">Call / WhatsApp</button>`;
+        const distText = h.dist < 999 ? Math.round(h.dist)+" km away" : "Far off-road";
+        let contactHTML = "";
+        if (h.contact) {
+          if (h.contact.includes('@')) {
+            contactHTML = `<br><strong>Contact:</strong> ${h.contact} <button class="contact-btn" onclick="window.open('mailto:${h.contact}')">Email</button>`;
+          } else if (/^\+?\d{8,15}$/.test(h.contact.replace(/\s/g,''))) {
+            const num = h.contact.replace(/\D/g,'');
+            contactHTML = `<br><strong>Contact:</strong> ${h.contact} <button class="contact-btn" onclick="window.open('https://wa.me/${num}')">WhatsApp</button>`;
+          } else {
+            contactHTML = `<br><strong>Contact:</strong> ${h.contact}`;
+          }
+        }
+        d.innerHTML = `<strong>${h.name}</strong> – ${distText}<br>${h.offer}${contactHTML}`;
         list.appendChild(d);
       });
     }
 
     function sendSOS() {
       if (!user?.lat) return alert("Waiting for GPS…");
-      const msg=`ROADKIN SOS\n${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
+      const msg=`ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
-      alert("SOS ready – share it!");
+      alert("SOS ready – paste into WhatsApp groups!");
     }
 
     function toggleMode() {
@@ -143,7 +157,7 @@
         '&entry.1366145812=' + available;
 
       window.open(url, '_blank');
-      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live worldwide in seconds.");
+      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live worldwide.");
     }
 
     function haversine(lat1,lon1,lat2,lon2){
@@ -154,8 +168,6 @@
       const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
-
-    function callHelper(){alert("No phone listed – use WhatsApp SOS and mention them!");}
   </script>
 </body>
 </html>
