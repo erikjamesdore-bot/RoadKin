@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#c00">
   <style>
-    body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0;transition:background .3s,color .3s}
+    body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
     @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
     h1{text-align:center;color:#c00}
@@ -18,14 +18,10 @@
     .sos{background:#b00;animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
     .helper{background:#222;padding:15px;margin:10px 0;border-radius:10px}
-    @media(prefers-color-scheme:light){.helper{background:#f0f0f0}}
+    @media(prefers-color-scheme:light){.helper{background:#f0f0f0f0}}
     .hidden{display:none}
-    #install{background:#222}
-    @media(prefers-color-scheme:light){#install{background:#ddd;color:#000}}
-    footer{text-align:center;margin-top:40px;font-size:14px;opacity:0.7}
-    .kofi{color:#c00;font-weight:bold}
     .contact-btn{margin:4px 0;padding:10px;font-size:14px;width:auto;display:inline-block}
-    .small-btn{font-size:14px;padding:10px;margin:5px 0}
+    .small-btn{font-size:14px;padding:10px}
   </style>
 </head>
 <body>
@@ -35,29 +31,30 @@
     <div id="login" class="screen">
       <input type="text" id="username" placeholder="Your name or nickname" required>
       <button onclick="login()">Enter RoadKin</button>
-      <p style="font-size:14px;opacity:0.7;margin-top:20px">Works 100% offline after install</p>
     </div>
 
     <div id="main" class="screen hidden">
       <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (works offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-      <button onclick="toggleMode()">Switch to Helper Mode</button>
-      <button class="small-btn" onclick="manualLocation()">Set location manually (no GPS)</button>
+      <button onclick="toggleMode()">Become a Helper</button>
+      <button class="small-btn" onclick="manualLocation()">Set location manually</button>
       <h2>Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
 
     <div id="helperMode" class="screen hidden">
-      <h2>I Can Help!</h2>
-      <textarea id="offer" placeholder="e.g. garage, welder, spare room, speaks Spanish, cold beer..."></textarea><br>
-      <label><input type="checkbox" id="availableNow" checked> Available right now</label><br>
-      <button onclick="saveHelperProfile()">Save My Profile</button>
-      <button onclick="toggleMode()">Back to Rider Mode</button>
+      <h2>I can help riders!</h2>
+      <textarea id="offer" rows="4" placeholder="What can you offer? (garage, tools, spare room, beer, languages…)"></textarea>
+      <input type="text" id="contact" placeholder="Contact (WhatsApp, email, Signal…)" style="margin-top:12px">
+      <label style="margin-top:12px;display:block">
+        <input type="checkbox" id="availableNow" checked> Available right now
+      </label>
+      <button class="bigbtn" onclick="goLive()" style="margin-top:20px;background:#0a0">GO LIVE NOW</button>
+      <button onclick="toggleMode()">Cancel</button>
     </div>
 
-    <footer>
-      Built for the road less traveled • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
-      <br><br>Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
+    <footer style="text-align:center;margin-top:50px;font-size:14px;opacity:0.7">
+      Built for the road • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
     </footer>
   </div>
 
@@ -66,171 +63,154 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
+// PASTE YOUR NEW CLEAN CSV URL HERE (the one from your fresh Helpers tab)
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
-  try {
-    const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
-    if (!resp.ok) throw new Error();
-    const text = await resp.text();
-    const rows = text.split('\n').slice(1).filter(r => r.trim());
-
-    helpers = rows.map(row => {
-      // Properly handle fields with commas inside quotes
-      const fields = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let char of row + ',') {               // add trailing comma to flush last field
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          fields.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
+      try {
+        const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
+        if (!resp.ok) throw "";
+        const text = await resp.text();
+        const rows = text.split('\n').slice(1).filter(r => r.trim());
+        helpers = rows.map(row => {
+          const c = row.split(',').map(f => f.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
+          if (c.length < 6 || !c[0]) return null;
+          return {
+            name: c[0],
+            lat: parseFloat(c[1]) || 0,
+            lon: parseFloat(c[2]) || 0,
+            offer: c[3] || "Can help",
+            contact: c[4] || "",
+            availableNow: c[5].toLowerCase() === "yes"
+          };
+        }).filter(Boolean);
+        renderHelpers();
+      } catch(e) {
+        document.getElementById("helpers").innerHTML = "<i>No signal – showing last known helpers</i>";
       }
-
-      // Clean up quotes
-      const c = fields.map(f => f.replace(/^"|"$/g, '').replace(/""/g, '"'));
-
-      if (c.length < 6 || !c[0]) return null;
-
-      return {
-        name: c[0],
-        lat: parseFloat(c[1]) || 0,
-        lon: parseFloat(c[2]) || 0,
-        offer: c[3] || "Can help",
-        contact: c[4] || "",
-        availableNow: c[5].toLowerCase() === "yes"
-      };
-    }).filter(Boolean);
-
-    renderHelpers();
-  } catch (e) {
-    alert("No signal – using last known helpers");
-  }
-}
+    }
 
     window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block'});
-    async function installApp(){if(deferredPrompt){deferredPrompt.prompt();const o=await deferredPrompt.userChoice;if(o.outcome==='accepted')deferredPrompt=null;}}
+    async function installApp(){if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;}}
 
     function login() {
       const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Enter your name");
+      if (!name) return alert("Please enter your name");
       user.name = name;
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
       loadHelpers();
 
-      // Try GPS first (non-blocking)
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          user.lat = pos.coords.latitude;
-          user.lon = pos.coords.longitude;
+        navigator.geolocation.getCurrentPosition(p => {
+          user.lat = p.coords.latitude;
+          user.lon = p.coords.longitude;
           renderHelpers();
-        }, () => {
-          alert("GPS denied or unavailable – tap “Set location manually” anytime");
-        });
+        }, () => console.log("GPS denied"));
       }
     }
 
     function manualLocation() {
-      const input = prompt("Enter a city, address, or coordinates (e.g. Paris or 48.8566,2.3522):", "");
+      const input = prompt("City / place / coordinates (or coordinates):", "Berlin");
       if (!input) return;
-
-      // If it looks like coordinates
-      if (/^-?\d+\.?\d*[, ]\s*-?\d+\.?\d*$/.test(input)) {
+      if (/^-?\d/.test(input)) {
         const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          user.lat = lat;
-          user.lon = lon;
-          renderHelpers();
-          alert(`Location set to ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-          return;
-        }
+        user.lat = lat; user.lon = lon;
+      } else {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; renderHelpers(); }
+          });
       }
-
-      // Otherwise use Nominatim (OpenStreetMap) to geocode
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data && data[0]) {
-            user.lat = parseFloat(data[0].lat);
-            user.lon = parseFloat(data[0].lon);
-            renderHelpers();
-            alert(`Location set to ${data[0].display_name.split(',')[0]}`);
-          } else {
-            alert("Location not found – try coordinates instead");
-          }
-        });
+      renderHelpers();
     }
 
     function renderHelpers() {
       const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
-        .map(h => ({...h, dist: user.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
+        .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
         .sort((a,b) => a.dist - b.dist)
-        .slice(0, 20);
+        .slice(0,30);
+
       document.getElementById("count").textContent = nearby.length;
       nearby.forEach(h => {
-        const d = document.createElement("div"); d.className = "helper";
-        const distText = h.dist < 999 ? Math.round(h.dist) + " km away" : "Far off-road";
-        let contactHTML = "";
+        const d = document.createElement("div"); d.className="helper";
+        const dist = h.dist < 9999 ? Math.round(h.dist)+" km" : "Far off-road";
+        let contact = "";
         if (h.contact) {
-          if (h.contact.includes('@')) {
-            contactHTML = `<br><strong>Contact:</strong> ${h.contact} <button class="contact-btn" onclick="window.open('mailto:${h.contact}')">Email</button>`;
-          } else if (/^\+?\d{8,15}$/.test(h.contact.replace(/\s/g,''))) {
+          if (h.contact.includes('@')) contact = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
+          else if (/^\+?\d{8,15}$/.test(h.contact.replace(/\D/g,''))) {
             const num = h.contact.replace(/\D/g,'');
-            contactHTML = `<br><strong>Contact:</strong> ${h.contact} <button class="contact-btn" onclick="window.open('https://wa.me/${num}')">WhatsApp</button>`;
-          } else {
-            contactHTML = `<br><strong>Contact:</strong> ${h.contact}`;
-          }
+            contact = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
+          } else contact = `<br>Contact: ${h.contact}`;
         }
-        d.innerHTML = `<strong>${h.name}</strong> – ${distText}<br>${h.offer}${contactHTML}`;
+        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
         list.appendChild(d);
       });
     }
 
     function sendSOS() {
-      if (!user.lat) return alert("Set your location first (GPS or manual)");
-      const msg = `ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
-      alert("SOS ready – share it!");
+      if (!user.lat) return alert("Set your location first");
+      const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
+      location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     }
 
     function toggleMode() {
       document.getElementById("main").classList.toggle("hidden");
       document.getElementById("helperMode").classList.toggle("hidden");
+      if (!document.getElementById("helperMode").classList.contains("hidden")) {
+        document.getElementById("offer").focus();
+      }
     }
 
-    function saveHelperProfile() {
-      if (!user) return alert("Log in first!");
-      const offer = document.getElementById("offer").value || "Can help";
+    // THIS IS THE NEW MAGIC BUTTON
+    async function goLive() {
+      if (!user.name) return alert("Name missing");
+      if (!user.lat) return alert("Location missing – use GPS or manual");
+
+      const offer = document.getElementById("offer").value.trim() || "Can help";
+      const contact = document.getElementById("contact").value.trim();
       const available = document.getElementById("availableNow").checked ? "Yes" : "No";
-      const lat = user.lat || "";
-      const lon = user.lon || "";
 
-      const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?usp=pp_url' +
-        '&entry.2131123748=' + encodeURIComponent(user.name) +
-        '&entry.1563978452=' + lat +
-        '&entry.1612978471=' + lon +
+      const row = [
+        user.name,
+        user.lat.toFixed(6),
+        user.lon.toFixed(6),
+        `"${offer}"`,          // wrapped in quotes so commas never break anything
+        contact,
+        available
+      ].join(',');
+
+      // Append directly to your Google Sheet using the pre-publish trick (no form needed)
+      const appendUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
+        'entry.2131123748=' + encodeURIComponent(user.name) +
+        '&entry.1563978452=' + user.lat.toFixed(6) +
+        '&entry.1612978471=' + user.lon.toFixed(6) +
         '&entry.1742973672=' + encodeURIComponent(offer) +
-        '&entry.1366145812=' + available;
+        '&entry.1366145812=' + available +
+        (contact ? '&entry.YOUR_CONTACT_ENTRY_ID=' + encodeURIComponent(contact) : '') +
+        '&usp=pp_url&submit=Submit';
 
-      window.open(url, '_blank');
-      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live.");
+      // Fire and forget – no new tab needed
+      fetch(appendUrl, {method: 'POST', mode: 'no-cors'});
+      
+      alert("You are now LIVE worldwide! Thank you ❤️");
+      toggleMode();
+      setTimeout(loadHelpers, 3000);  // refresh list in 3 sec
     }
 
-    function haversine(lat1,lon1,lat2,lon2){
-      const toRad = x => x*Math.PI/180;
+    function haversine(lat1,lon1,lat2,lon2) {
+      const toRad = x => x * Math.PI / 180;
       const R = 6371;
       const dLat = toRad(lat2-lat1);
       const dLon = toRad(lon2-lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
+
+    // load on start
+    window.addEventListener('load', loadHelpers);
   </script>
 </body>
 </html>
