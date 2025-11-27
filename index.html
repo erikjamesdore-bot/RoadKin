@@ -10,30 +10,32 @@
   #app{max-width:480px;margin:30px auto;padding:20px;position:relative}
   h1{text-align:center;color:#fff;margin:0 0 30px;font-size:28px}
   @media(prefers-color-scheme:light){h1{color:#c00}}
-  .logout{position:absolute;top:10px;right:10px;background:#900;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:14px}
-  .user-bar{background:#000;padding:20px;border-radius:18px;margin-bottom:25px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4)}
+  .logout{position:absolute;top:10px;right:10px;background:#900;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:14px;cursor:pointer}
+  .user-bar{background:#000;padding:22px;border-radius:20px;margin-bottom:25px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.5)}
   @media(prefers-color-scheme:light){.user-bar{background:#fff;color:#000;border:2px solid #c00}}
-  .user-name{font-size:26px;font-weight:800;margin-bottom:6px}
+  .user-name{font-size:26px;font-weight:800;margin-bottom:8px}
   .coords{font-size:15px;opacity:0.9;word-break:break-all;margin:10px 0}
   button{width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;font-size:19px;cursor:pointer;font-weight:bold}
   .bigbtn{padding:34px;font-size:26px}
-  .sos{background:#b00;animation:pulse 2.5s infinite;box-shadow:0 0 20px #f00}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.8)}70%{box-shadow:0 0 0 35px transparent}100%{box-shadow:0 0 0 0 transparent}}
-  .helper{background:#000;padding:20px;margin:14px 0;border-radius:16px;line-height:1.6;box-shadow:0 3px 10px rgba(0,0,0,0.5)}
+  .sos{background:#b00;animation:pulse 2.5s infinite;box-shadow:0 0 25px #f00}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.8)}70%{box-shadow:0 0 0 40px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .helper{background:#000;padding:22px;margin:16px 0;border-radius:18px;line-height:1.7;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
   @media(prefers-color-scheme:light){.helper{background:#f9f9f9;color:#000;border:1px solid #ddd}}
   .hidden{display:none}
-  .contact-btn{margin-top:10px;padding:11px 16px;font-size:15px;border-radius:10px;background:#333;display:inline-block}
+  .contact-btn{margin-top:10px;padding:11px 18px;font-size:15px;border-radius:10px;background:#333;display:inline-block}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:25px 0}
-  .switch{position:relative;display:inline-block;width:86px;height:46px}
+  .switch{position:relative;display:inline-block;width:90px;height:48px}
   .switch input{opacity:0;width:0;height:0}
-  .slider{position:absolute;inset:0;background:#555;border-radius:46px;transition:.4s}
-  .slider:before{position:absolute;content:"";height:38px;width:38px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.4s}
+  .slider{position:absolute;inset:0;background:#555;border-radius:48px;transition:.4s}
+  .slider:before{position:absolute;content:"";height:40px;width:40px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.4s}
   input:checked + .slider{background:#0f0}
-  input:checked + .slider:before{transform:translateX(40px)}
-  .status{font-size:18px;font-weight:bold}
-  label{display:block;margin:20px 0 8px;font-weight:600}
-  input,textarea{width:100%;padding:14px;border-radius:12px;border:none;background:#222;color:#fff;font-size:16px}
+  input:checked + .slider:before{transform:translateX(42px)}
+  .status{font-size:19px;font-weight:bold}
+  label{display:block;margin:20px 0 8px;font-weight:600;font-size:16px;color:#fff}
+  @media(prefers-color-scheme:light){label{color:#000}}
+  input,textarea{width:100%;padding:16px;border-radius:14px;border:none;background:#222;color:#fff;font-size:17px;box-sizing:border-box}
   @media(prefers-color-scheme:light){input,textarea{background:#fff;color:#000;border:1px solid #ccc}}
+  h2{margin-top:0;font-size:24px}
 </style>
 </head>
 <body>
@@ -64,18 +66,19 @@
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
     <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#444">Set location manually</button>
 
-    <h2>Nearby Helpers (<span id="count">0</span>)</h2>
+    <h2>Nearby Helpers: <span id="count">0</span></h2>
     <div id="helpers"></div>
   </div>
 
   <!-- EDIT PROFILE -->
   <div id="edit" class="screen hidden">
     <h2>Edit your help offer</h2>
-    <label>What can you offer?</label>
+    
+    <label for="offer">What can you offer?</label>
     <textarea id="offer" rows="5" placeholder="garage, tools, cold beer, spare bed, welding, Spanish…"></textarea>
     
-    <label>Contact (WhatsApp, email, Signal…)</label>
-    <input type="text" id="contact" placeholder="+123456789 or name@email.com">
+    <label for="contact">Contact (WhatsApp, email, Signal…)</label>
+    <input type="text" id="contact" placeholder="+1234567890 or name@email.com">
     
     <button class="bigbtn" onclick="saveAndBack()" style="background:#0b0">Save & Back</button>
   </div>
@@ -84,6 +87,7 @@
 <script>
 let user = { name: "", lat: null, lon: null, offer: "", contact: "" };
 let helpers = [];
+let lastSentState = null;  // This is the real fix!
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
@@ -95,7 +99,7 @@ function loadUser() {
 }
 
 function logout() {
-  if(confirm("Log out and clear your data on this device?")) {
+  if(confirm("Log out and clear your data?")) {
     localStorage.removeItem('roadkin_user');
     location.reload();
   }
@@ -120,19 +124,15 @@ async function loadHelpers() {
       };
     }).filter(Boolean);
 
-    // Sync my current status from sheet (this stops the revert!)
     const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-    const toggle = document.getElementById("availToggle");
-    const status = document.getElementById("statusText");
     
-    if(me && me.availableNow) {
-      toggle.checked = true;
-      status.textContent = "ONLINE";
-      status.style.color = "#0f0";
-    } else {
-      toggle.checked = false;
-      status.textContent = "Offline";
-      status.style.color = "#aaa";
+    // ONLY update toggle if sheet says something different than what we last sent
+    const sheetState = !!me?.availableNow;
+    if(lastSentState !== null && sheetState !== lastSentState) {
+      // Google has processed our submission — trust the sheet
+      document.getElementById("availToggle").checked = sheetState;
+      document.getElementById("statusText").textContent = sheetState ? "ONLINE" : "Offline";
+      document.getElementById("statusText").style.color = sheetState ? "#0f0" : "#aaa";
     }
 
     renderHelpers();
@@ -143,23 +143,25 @@ async function loadHelpers() {
 
 function renderHelpers() {
   const list = document.getElementById("helpers"); list.innerHTML = "";
-  const nearby = helpers.filter(h => h.availableNow)
-    .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 99999}))
-    .sort((a,b) => a.dist - b.dist);
-
+  const nearby = helpers.filter(h => h.availableNow);
+  
   document.getElementById("count").textContent = nearby.length;
-  if(nearby.length === 0) { list.innerHTML = "<i>No one online – be the first!</i>"; return; }
+  
+  if(nearby.length === 0) { 
+    list.innerHTML = "<i>No one online – be the first!</i>"; 
+    return; 
+  }
 
   nearby.forEach(h => {
     const div = document.createElement("div"); div.className="helper";
-    const dist = h.dist < 99999 ? Math.round(h.dist)+" km away" : "Far off-road";
+    const dist = user.lat ? Math.round(haversine(user.lat,user.lon,h.lat,h.lon)) + " km away" : "Far off-road";
     let contactHTML = "";
     if(h.contact) {
       if(h.contact.includes('@'))
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
       else if(/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,'')))
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${h.contact.replace(/\D/g,'')}'">WhatsApp</button>`;
-      else if(h.contact)
+      else
         contactHTML = `<br>Contact: ${h.contact}`;
     }
     div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer || "Can help"}${contactHTML}`;
@@ -186,9 +188,10 @@ function sendToSheet(available) {
   const contact = document.getElementById("contact").value.trim();
   
   user.offer = offer;
-  ""; // never lose it
   user.contact = contact;
   saveUser();
+
+  lastSentState = available;  // Remember what we just told Google
 
   const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
     'entry.2131123748=' + encodeURIComponent(user.name) +
@@ -204,7 +207,7 @@ function sendToSheet(available) {
 
 document.getElementById("availToggle").onchange = function() {
   sendToSheet(this.checked);
-  setTimeout(loadHelpers, 8000); // Google needs time
+  setTimeout(loadHelpers, 8000);
 };
 
 function openEdit() {
@@ -234,8 +237,6 @@ function login() {
   document.getElementById("main").classList.remove("hidden");
   document.getElementById("logoutBtn").classList.remove("hidden");
   document.getElementById("displayName").textContent = n;
-  document.getElementById("offer").value = user.offer;
-  document.getElementById("contact").value = user.contact;
   updateCoords();
   loadHelpers();
 
@@ -251,7 +252,7 @@ function manualLocation() {
   const i = prompt("City name or coordinates (lat,lon):");
   if(!i) return;
   const p = i.split(/[,\s]+/).map(parseFloat);
-  if(p.length >= 2 && !isNaN(p[0])) {
+  if Kopiuj(wklej)2 && !isNaN(p[0])) {
     user.lat = p[0]; user.lon = p[1];
     saveUser(); updateCoords();
   } else {
@@ -267,10 +268,12 @@ function sendSOS() {
 }
 
 function haversine(lat1,lon1,lat2,lon2) {
-  const toRad=x=>x*Math.PI/180,R=6371;
-  const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);
-  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  const toRad = x => x * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 window.onload = () => {
