@@ -72,6 +72,7 @@
     let user = { name: "", lat: null, lon: null };
     let helpers = [];
 
+    // Your current published Helpers CSV URL
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
@@ -81,24 +82,27 @@
       try {
         const r = await fetch(SHEET_CSV + '&t=' + Date.now());
         const text = await r.text();
-        const raw = text.replace(/\r\n|\r|\n/g, '');   // one long string
-        const entries = raw.match(/[A-Za-z0-9._%+-]+(?=-?\d+\.?-?\d*)/g) || [];
+        const lines = text.split('\n');
 
         helpers = [];
-        for (let i = 0; i < entries.length; i++) {
-          const name = entries[i];
-          const latStr = raw.split(name)[1]?.match(/-?\d+\.?\d*/)?.[0];
-          const lonStr = raw.split(latStr)[1]?.match(/-?\d+\.?\d*/)?.[0];
-          const offerEnd = raw.indexOf('yes', raw.indexOf(lonStr) + lonStr.length);
-          const offer = raw.substring(raw.indexOf(lonStr) + lonStr.length, offerEnd).replace(/yes.*/i, '').trim();
-          const rest = raw.substring(offerEnd);
-          const available = /yes/i.test(rest.split(name)[0] || '');
 
-          const lat = parseFloat(latStr);
-          const lon = parseFloat(lonStr);
+        for (let line of lines) {
+          if (!line.trim() || line.includes('Name,Latitude')) continue;
+
+          // Find name (first non-empty cell after column A)
+          const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          if (cols.length < 6) continue;
+
+          // Your current sheet has data shifted right → name is in column B
+          const name = cols[1] || cols[0];
+          const lat = parseFloat(cols[2] || cols[1]);
+          const lon = parseFloat(cols[3] || cols[2]);
+          const offer = (cols[4] || cols[3] || "Can help").trim();
+          const contact = (cols[5] || cols[4] || "").trim();
+          const available = (cols[6] || cols[5] || "yes").toLowerCase().includes("yes");
 
           if (name && !isNaN(lat) && !isNaN(lon)) {
-            helpers.push({ name, lat, lon, offer: offer || "Can help", contact: "", availableNow: available });
+            helpers.push({ name, lat, lon, offer, contact, availableNow: available });
           }
         }
 
@@ -116,12 +120,18 @@
         .sort((a,b) => a.dist - b.dist);
 
       document.getElementById("count").textContent = nearby.length;
-      if (!nearby.length) { list.innerHTML = "<i>No one online yet – tap your name to help!</i>"; return; }
+      if (!nearby.length) { list.innerHTML = "<i>No one online – tap your name to help!</i>"; return; }
 
       nearby.forEach(h => {
         const d = document.createElement("div"); d.className="helper";
         const dist = h.dist < 9999 ? Math.round(h.dist)+" km away" : "Far off-road";
-        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}`;
+        let contact = h.contact ? `<br>Contact: ${h.contact} ` : "";
+        if (h.contact?.includes('@')) contact += `<button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
+        else if (/^\+?\d+$/.test(h.contact.replace(/\D/g,''))) {
+          const num = h.contact.replace(/\D/g,'');
+          contact += `<button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
+        }
+        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
         list.appendChild(d);
       });
     }
@@ -177,7 +187,7 @@
         '&usp=pp_url&submit=Submit';
 
       fetch(url,{method:'GET',mode:'no-cors'});
-      alert("You are LIVE! Thank you");
+      alert("You are now LIVE! Thank you hero");
       toggleEditMode();
       setTimeout(loadHelpers,4000);
     }
