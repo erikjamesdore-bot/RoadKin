@@ -64,84 +64,62 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // === YOUR GOOGLE SHEET (published as CSV) ===
-    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT5d8gJ9vJ8zL7kN5vR8P9mKxL3qWvB9jH2fG5sR8tL9pQvM3nX7cYbD2fG8hJ9kL3nP5qR7tU9vW1xY/pub?output=csv';
+    // YOUR LIVE GOOGLE SHEET
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=700915225&single=true&output=csv';
 
     async function loadHelpers() {
       try {
         const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
+        if (!resp.ok) throw new Error();
         const text = await resp.text();
         const rows = text.split('\n').slice(1);
         helpers = rows.map(row => {
-          const cols = row.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-          if (cols.length < 5) return null;
+          const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
+          if (c.length < 5) return null;
           return {
-            name: cols[0] || "Anonymous rider",
-            lat: parseFloat(cols[1]) || 0,
-            lon: parseFloat(cols[2]) || 0,
-            offer: cols[3] || "Can help somehow",
-            availableNow: cols[4] === "Yes"
+            name: c[0] || "Anonymous rider",
+            lat: parseFloat(c[1]) || 0,
+            lon: parseFloat(c[2]) || 0,
+            offer: c[3] || "Can help",
+            availableNow: c[4] === "Yes"
           };
-        }).filter(h => h && h.availableNow);
+        }).filter(Boolean);
         renderHelpers();
       } catch(e) {
         alert("No signal – using last known helpers");
       }
     }
 
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById('install').style.display = 'block';
-    });
-    async function installApp() {
-      if (!deferredPrompt) return alert('Already installed');
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') deferredPrompt = null;
-    }
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+    window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block'});
+    async function installApp(){if(deferredPrompt){deferredPrompt.prompt();const o=await deferredPrompt.userChoice;if(o.outcome==='accepted')deferredPrompt=null;}}
 
     function login() {
       const name = document.getElementById("username").value.trim();
       if (!name) return alert("Enter your name");
-      user = { name, lat: null, lon: null };
+      user = {name, lat:null, lon:null};
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
       loadHelpers();
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          user.lat = pos.coords.latitude;
-          user.lon = pos.coords.longitude;
-          renderHelpers();
-        }, () => {});
-      }
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p=>{user.lat=p.coords.latitude;user.lon=p.coords.longitude;renderHelpers();});
     }
 
     function renderHelpers() {
-      const list = document.getElementById("helpers");
-      list.innerHTML = "";
+      const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
-        .map(h => ({...h, dist: user?.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
-        .sort((a,b) => a.dist - b.dist)
-        .slice(0,20);
+        .map(h=>({...h, dist:user?.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 999}))
+        .sort((a,b)=>a.dist-b.dist).slice(0,20);
       document.getElementById("count").textContent = nearby.length;
-      nearby.forEach(h => {
-        const div = document.createElement("div");
-        div.className = "helper";
-        div.innerHTML = `
-          <strong>${h.name}</strong> – ${h.dist < 999 ? Math.round(h.dist)+" km away" : "Far off-road"}<br>
-          ${h.offer}<br>
-          <button onclick="callHelper()">Call / WhatsApp</button>
-        `;
-        list.appendChild(div);
+      nearby.forEach(h=>{
+        const d=document.createElement("div"); d.className="helper";
+        d.innerHTML=`<strong>${h.name}</strong> – ${h.dist<999?Math.round(h.dist)+" km": "Far off-road"}<br>${h.offer}<br><button onclick="callHelper()">Call / WhatsApp</button>`;
+        list.appendChild(d);
       });
     }
 
     function sendSOS() {
-      if (!user?.lat) return alert("Waiting for GPS… step outside or allow location.");
-      const msg = `ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      if (!user?.lat) return alert("Waiting for GPS…");
+      const msg=`ROADKIN SOS\n${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
       alert("SOS ready – share it!");
     }
 
@@ -152,34 +130,32 @@
 
     function saveHelperProfile() {
       if (!user) return alert("Log in first!");
-      const offer = document.getElementById("offer").value || "Can help somehow";
+      const offer = document.getElementById("offer").value || "Can help";
       const available = document.getElementById("availableNow").checked ? "Yes" : "No";
       const lat = user.lat || "";
       const lon = user.lon || "";
 
-      const formUrl = 'https://docs.google.com/forms/d/e/1GzgYFYF4gtFEPz3jEvwKJDRGXw_BOsKoD_e0mHCxC0w/formResponse?usp=pp_url' +
+      const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?usp=pp_url' +
         '&entry.2131123748=' + encodeURIComponent(user.name) +
         '&entry.1563978452=' + lat +
         '&entry.1612978471=' + lon +
         '&entry.1742973672=' + encodeURIComponent(offer) +
         '&entry.1366145812=' + available;
 
-      window.open(formUrl, '_blank');
-      alert("Form opened and pre-filled!\nJust tap SUBMIT and you’re live for everyone in seconds!");
+      window.open(url, '_blank');
+      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live for everyone in seconds.");
     }
 
-    function haversine(lat1, lon1, lat2, lon2) {
-      const toRad = x => x * Math.PI / 180;
-      const R = 6371;
-      const dLat = toRad(lat2-lat1);
-      const dLon = toRad(lon2-lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    function haversine(lat1,lon1,lat2,lon2){
+      const toRad=x=>x*Math.PI/180;
+      const R=6371;
+      const dLat=toRad(lat2-lat1);
+      const dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
 
-    function callHelper() {
-      alert("No phone listed – use WhatsApp SOS and mention them!");
-    }
+    function callHelper(){alert("No phone listed – use WhatsApp SOS and mention them!");}
   </script>
 </body>
 </html>
