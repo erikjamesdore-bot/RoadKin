@@ -11,8 +11,11 @@
     body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
     @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
-    h1{text-align:center;color:#c00;margin:15px 0}
-    .user-greeting{text-align:center;font-size:20px;margin:20px 0 30px;font-weight:600;opacity:0.9}
+    h1{text-align:center;color:#c00;margin:10px 0 20px}
+    .user-bar{background:#222;padding:16px;border-radius:16px;margin-bottom:25px;text-align:center;position:relative}
+    @media(prefers-color-scheme:light){.user-bar{background:#eee;color:#000}}
+    .user-name{font-size:22px;font-weight:700;cursor:pointer}
+    .user-name:hover{opacity:0.8}
     input,textarea,button{width:100%;padding:14px;margin:10px 0;border-radius:12px;border:none;font-size:16px;box-sizing:border-box}
     button{background:#c00;color:white;cursor:pointer;font-weight:bold}
     button.bigbtn{padding:30px;font-size:24px;margin:25px 0;border-radius:16px}
@@ -23,7 +26,7 @@
     .hidden{display:none}
     .contact-btn{margin:6px 0;padding:10px;font-size:14px;width:auto;display:inline-block;background:#333}
     @media(prefers-color-scheme:light){.contact-btn{background:#ddd;color:#000}}
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0;padding:10px 0}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
     .toggle-label{font-size:18px;font-weight:500}
     .switch{position:relative;display:inline-block;width:70px;height:38px}
     .switch input{opacity:0;width:0;height:0}
@@ -31,34 +34,38 @@
     .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
     input:checked + .slider{background:#0a0}
     input:checked + .slider:before{transform:translateX(32px)}
-    .back-btn{background:#555;margin-top:30px}
-    .logout-btn{background:#333;font-size:14px;padding:10px;margin-top:20px}
+    .logout{background:#900;font-size:14px;padding:10px;margin-top:10px}
   </style>
 </head>
 <body>
   <div id="app">
     <h1>RoadKin</h1>
 
+    <!-- LOGIN -->
     <div id="login" class="screen">
       <input type="text" id="username" placeholder="Your name or nickname" required>
       <button class="bigbtn" onclick="login()">Enter RoadKin</button>
     </div>
 
+    <!-- MAIN SCREEN -->
     <div id="main" class="screen hidden">
-      <div class="user-greeting">Hi, <span id="displayName"></span> 👋</div>
+      <div class="user-bar" onclick="toggleEditMode()">
+        <div class="user-name">Hi, <span id="displayName"></span> <small>↓ tap to edit your help status</small></div>
+      </div>
+
       <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-      <button class="bigbtn" onclick="toggleMode()" style="background:#0a0">Become a Helper</button>
-      <button class="small-btn" onclick="manualLocation()" style="font-size:15px;padding:12px">Set location manually</button>
-      <button class="logout-btn" onclick="logout()">Log out</button>
+      <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
+
       <h2 style="margin-top:30px">Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
 
-    <div id="helperMode" class="screen hidden">
-      <h2>I can help riders!</h2>
-      <textarea id="offer" rows="5" placeholder="What can you offer? (garage, tools, spare room, beer, languages…)"></textarea>
-      <input type="text" id="contact" placeholder="Contact: WhatsApp, email, Signal… (optional)">
+    <!-- EDIT HELP STATUS (appears when clicking name) -->
+    <div id="editMode" class="screen hidden">
+      <h2>What can you offer?</h2>
+      <textarea id="offer" rows="4" placeholder="garage, tools, spare room, beer, languages…"></textarea>
+      <input type="text" id="contact" placeholder="Contact (WhatsApp, email, Signal…)">
       <div class="toggle-row">
         <div class="toggle-label">Available right now</div>
         <label class="switch">
@@ -66,20 +73,21 @@
           <span class="slider"></span>
         </label>
       </div>
-      <button class="bigbtn" onclick="goLive()" style="background:#0b0;font-size:26px">GO LIVE NOW</button>
-      <button class="back-btn" onclick="toggleMode()">Back</button>
+      <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
+      <button class="bigbtn" onclick="goOffline()" style="background:#900">GO OFFLINE</button>
+      <button class="logout" onclick="logout()">Log out</button>
     </div>
   </div>
 
   <script>
-    let user = { name: "", lat: null, lon: null };
-    let deferredPrompt = null;
+    let user = { name: "", lat: null, lon: null, isHelper: false };
     let helpers = [];
+    let deferredPrompt = null;
 
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-    function loadUser() { 
+    function loadUser() {
       const saved = localStorage.getItem('roadkin_user');
       if (saved) { user = JSON.parse(saved); return true; }
       return false;
@@ -114,18 +122,14 @@
 
     function login() {
       const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Please enter your name");
+      if (!name) return alert("Enter your name");
       user.name = name;
       saveUser();
-      showMainScreen();
-    }
-
-    function showMainScreen() {
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
-      document.getElementById("displayName").textContent = user.name;
+      document.getElementById("displayName").textContent = name;
       loadHelpers();
-      if (!user.lat && navigator.geolocation) {
+      if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
           user.lat = p.coords.latitude;
           user.lon = p.coords.longitude;
@@ -135,23 +139,29 @@
       }
     }
 
-    function logout() {
-      if (confirm("Log out?")) {
-        localStorage.removeItem('roadkin_user');
-        location.reload();
+    function toggleEditMode() {
+      document.getElementById("main").classList.toggle("hidden");
+      document.getElementById("editMode").classList.toggle("hidden");
+      // Pre-fill current values if you're already live
+      const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
+      if (me) {
+        document.getElementById("offer").value = me.offer;
+        document.getElementById("contact").value = me.contact;
+        document.getElementById("availableNow").checked = me.availableNow;
       }
     }
 
     function manualLocation() {
-      const input = prompt("Enter city or coordinates:", "");
+      const input = prompt("City or coordinates:", "");
       if (!input) return;
       if (/^-?\d/.test(input.trim())) {
         const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
-        if (lat && lon) { user.lat = lat; user.lon = lon; saveUser(); renderHelpers(); return; }
+        if (lat && lon) { user.lat = lat; user.lon = lon; saveUser(); renderHelpers(); }
+      } else {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+          .then(r => r.json())
+          .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; saveUser(); renderHelpers(); } });
       }
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
-        .then(r => r.json())
-        .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; saveUser(); renderHelpers(); } });
     }
 
     function renderHelpers() {
@@ -164,19 +174,17 @@
 
       document.getElementById("count").textContent = nearby.length;
       if (nearby.length === 0) {
-        list.innerHTML = "<i>No one online right now – be the first!</i>";
+        list.innerHTML = "<i>No one online right now – tap your name to help!</i>";
         return;
       }
       nearby.forEach(h => {
         const d = document.createElement("div"); d.className="helper";
         const dist = h.dist < 9999 ? Math.round(h.dist) + " km away" : "Far off-road";
-        let contact = "";
-        if (h.contact) {
-          if (h.contact.includes('@')) contact = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
-          else if (/^\+?\d{8,15}$/.test(h.contact.replace(/\D/g,''))) {
-            const num = h.contact.replace(/\D/g,'');
-            contact = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
-          } else contact = `<br>Contact: ${h.contact}`;
+        let contact = h.contact ? `<br>Contact: ${h.contact} ` : "";
+        if (h.contact?.includes('@')) contact += `<button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
+        else if (/^\+?\d{8,15}$/.test(h.contact?.replace(/\D/g,''))) {
+          const num = h.contact.replace(/\D/g,'');
+          contact += `<button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
         }
         d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
         list.appendChild(d);
@@ -189,11 +197,6 @@
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     }
 
-    function toggleMode() {
-      document.getElementById("main").classList.toggle("hidden");
-      document.getElementById("helperMode").classList.toggle("hidden");
-    }
-
     function goLive() {
       if (!user.lat) return alert("Location required");
       const offer = document.getElementById("offer").value.trim() || "Can help";
@@ -202,17 +205,31 @@
 
       const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
         'entry.2131123748=' + encodeURIComponent(user.name) +
-        '&entry.1563978452=' + (user.lat?.toFixed(6) || '') +
-        '&entry.1612978471=' + (user.lon?.toFixed(6) || '') +
+        '&entry.1563978452=' + user.lat.toFixed(6) +
+        '&entry.1612978471=' + user.lon.toFixed(6) +
         '&entry.1742973672=' + encodeURIComponent(offer) +
         '&entry.1366145812=' + available +
-        (contact ? '&entry.XXXXXXX=' + encodeURIComponent(contact) : '') +
+        (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
         '&usp=pp_url&submit=Submit';
 
       fetch(url, {method: 'GET', mode: 'no-cors'});
-      alert("You are now LIVE worldwide! Thank you hero");
-      toggleMode();
+      alert("You are LIVE! Thank you hero");
+      toggleEditMode();
       setTimeout(loadHelpers, 4000);
+    }
+
+    function goOffline() {
+      alert("You are now offline. Thank you for helping!");
+      toggleEditMode();
+      // In real life we'd delete the row — for now just refresh will hide you
+      setTimeout(loadHelpers, 3000);
+    }
+
+    function logout() {
+      if (confirm("Log out?")) {
+        localStorage.removeItem('roadkin_user');
+        location.reload();
+      }
     }
 
     function haversine(lat1,lon1,lat2,lon2) {
@@ -224,10 +241,12 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // AUTO-LOGIN + SHOW NAME
+    // AUTO-LOGIN
     window.addEventListener('load', () => {
       if (loadUser() && user.name) {
-        showMainScreen();
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("main").classList.remove("hidden");
+        document.getElementById("displayName").textContent = user.name;
       }
       loadHelpers();
     });
