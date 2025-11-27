@@ -9,80 +9,71 @@
   @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
   #app{max-width:480px;margin:40px auto;padding:20px}
   h1{text-align:center;color:#c00;margin-bottom:10px}
-  .user-bar{background:#222;padding:18px;border-radius:16px;margin-bottom:20px;text-align:center;cursor:pointer}
-  .user-name{font-size:23px;font-weight:700;margin-bottom:8px}
-  .coords{font-size:14px;opacity:0.8;word-break:break-all}
+  .user-bar{background:#222;padding:18px;border-radius:16px;margin-bottom:20px;text-align:center}
+  .user-name{font-size:23px;font-weight:700}
+  .coords{font-size:14px;opacity:0.8;margin:8px 0;word-break:break-all}
   button{width:100%;padding:16px;margin:12px 0;border:none;border-radius:12px;font-size:18px;cursor:pointer}
   .bigbtn{padding:32px;font-size:24px}
   .sos{background:#b00;animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px transparent}100%{box-shadow:0 0 0 0 transparent}}
   .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px}
   .hidden{display:none}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:25px 0}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
   .switch{position:relative;display:inline-block;width:80px;height:42px}
   .switch input{opacity:0;width:0;height:0}
   .slider{position:absolute;inset:0;background:#555;border-radius:34px;transition:.3s}
   .slider:before{position:absolute;content:"";height:34px;width:34px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
   input:checked + .slider{background:#0a0}
   input:checked + .slider:before{transform:translateX(38px)}
-  .status{font-weight:bold;color:#0f0}
+  .status{font-weight:bold}
 </style>
 </head>
 <body>
 <div id="app">
   <h1>RoadKin</h1>
 
-  <!-- LOGIN -->
   <div id="login" class="screen">
     <input type="text" id="username" placeholder="Your name or nickname">
     <button class="bigbtn" onclick="login()">Enter RoadKin</button>
   </div>
 
-  <!-- MAIN SCREEN -->
   <div id="main" class="screen hidden">
-    <div class="user-bar" onclick="toggleEditMode()">
+    <div class="user-bar">
       <div class="user-name">Hi, <span id="displayName"></span></div>
       <div class="coords" id="coordsDisplay">Getting location…</div>
       <div class="toggle-row">
-        <div><span class="status id="statusText">Offline</span> — tap to edit</div>
+        <div><span class="status" id="statusText" style="color:#aaa">Offline</span></div>
         <label class="switch">
-          <input type="checkbox" id="availabilityToggle">
+          <input type="checkbox" id="availToggle">
           <span class="slider"></span>
         </label>
       </div>
     </div>
 
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-    <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#333;display:none">Set location manually</button>
+    <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
 
     <h2>Nearby Helpers (<span id="count">0</span>)</h2>
     <div id="helpers"></div>
-  </div>
-
-  <!-- EDIT SCREEN (only appears when you tap your name) -->
-  <div id="editMode" class="screen hidden">
-    <h2>What can you offer?</h2>
-    <textarea id="offer" rows="4" placeholder="garage, tools, beer, languages…"></textarea>
-    <input type="text" id="contact" placeholder="WhatsApp / email (optional)">
-    <button class="bigbtn" onclick="toggleEditMode()" style="background:#900;margin-top:30px">← Back</button>
   </div>
 </div>
 
 <script>
 let user = { name: "", lat: null, lon: null };
 let helpers = [];
-let isAvailable = false;
+let iAmLive = false;
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
 function saveUser(){ localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
+function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s);return true} return false; }
 
 async function loadHelpers(){
   try{
     const r = await fetch(SHEET_CSV + '&t=' + Date.now());
     const text = await r.text();
     const lines = text.split('\n').slice(1).filter(l => l.trim());
+
     helpers = lines.map(l => {
       const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
       if(c.length < 6) return null;
@@ -96,87 +87,91 @@ async function loadHelpers(){
       };
     }).filter(Boolean);
 
+    // Check if I am already in the sheet
+    const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
+    iAmLive = me ? me.availableNow : false;
+
+    document.getElementById("availToggle").checked = iAmLive;
+    document.getElementById("statusText").textContent = iAmLive ? "ONLINE" : "Offline";
+    document.getElementById("statusText").style.color = iAmLive ? "#0f0" : "#aaa";
+
     renderHelpers();
-    updateMyStatusDisplay();
   }catch(e){
-    document.getElementById("helpers").innerHTML = "<i>No internet</i>";
+    document.getElementById("helpers").innerHTML = "<i>No internet – last known helpers hidden</i>";
   }
 }
 
 function renderHelpers(){
   const list = document.getElementById("helpers"); list.innerHTML = "";
-  const nearby = helpers.filter(h => h.availableNow && h.name !== user.name)
+  const nearby = helpers.filter(h => h.availableNow)
     .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 99999}))
     .sort((a,b) => a.dist - b.dist);
 
-  document.getElementById("count").textContent = nearby.length + (isAvailable ? 1 : 0);
-  if(!nearby.length && !isAvailable){ list.innerHTML = "<i>No one online yet – turn yourself on!</i>"; return; }
+  document.getElementById("count").textContent = nearby.length;
 
-  if(isAvailable){
-    const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-    if(me || user.lat){
-      const myDist = "← YOU ARE HERE";
-      const myOffer = document.getElementById("offer").value.trim() || "Can help";
-      list.innerHTML += `<div class="helper" style="background:#040;"><strong>${user.name}</strong> – ${myDist}<br>${myOffer}</div>`;
-    }
+  if(nearby.length === 0){
+    list.innerHTML = "<i>No one online right now – be the first!</i>";
+    return;
   }
 
   nearby.forEach(h => {
-    const div = document.createElement("div"); div.className = "helper";
+    const div = document.createElement("div");
+    div.className = "helper";
     const dist = h.dist < 99999 ? Math.round(h.dist) + " km away" : "Far off-road";
     div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}`;
     list.appendChild(div);
   });
 }
 
-function updateCoordsDisplay(){
+function updateCoords(){
   const el = document.getElementById("coordsDisplay");
   const btn = document.getElementById("manualBtn");
   if(user.lat){
     el.textContent = `${user.lat.toFixed(5)}, ${user.lon.toFixed(5)}`;
     btn.style.display = "none";
   } else {
-    el.textContent = "Location unknown – tap to set";
+    el.textContent = "Location unknown";
     btn.style.display = "block";
   }
 }
 
-function updateMyStatusDisplay(){
-  const toggle = document.getElementById("availabilityToggle");
-  const text = document.getElementById("statusText");
-  const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-  isAvailable = !!me && me.availableNow;
-  toggle.checked = isAvailable;
-  text.textContent = isAvailable ? "ONLINE" : "Offline";
-  text.style.color = isAvailable ? "#0f0" : "#aaa";
-}
-
-function sendToSheet(available){
-  if(!user.lat) return alert("Location required");
-  const offer = document.getElementById("offer").value.trim() || "Can help";
-  const contact = document.getElementById("contact").value.trim();
-
+function sendToSheet(state){
+  if(!user.lat) { alert("Need location first"); return false; }
+  const offer = "Can help"; // or read from a hidden field if you want
   const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
     'entry.2131123748=' + encodeURIComponent(user.name) +
     '&entry.1563978452=' + user.lat.toFixed(6) +
     '&entry.1612978471=' + user.lon.toFixed(6) +
     '&entry.1742973672=' + encodeURIComponent(offer) +
-    '&entry.1366145812=' + (available ? 'yes' : 'no') +
-    (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
+    '&entry.1366145812=' + (state ? 'yes' : 'no') +
     '&usp=pp_url&submit=Submit';
 
-  fetch(url,{method:'GET',mode:'no-cors'});
+  fetch(url, {method:'GET', mode:'no-cors'});
+  return true;
 }
 
-document.getElementById("availabilityToggle").onchange = function(){
+document.getElementById("availToggle").onchange = function(){
   if(this.checked){
-    sendToSheet(true);
-    alert("You are now LIVE worldwide! Thank you hero");
+    if(sendToSheet(true)){
+      iAmLive = true;
+      document.getElementById("statusText").textContent = "ONLINE";
+      document.getElementById("statusText").style.color = "#0f0";
+      alert("You are now LIVE worldwide!");
+      setTimeout(loadHelpers, 4000);
+    } else {
+      this.checked = false;
+    }
   } else {
-    sendToSheet(false);
-    alert("You are now offline");
+    if(sendToSheet(false)){
+      iAmLive = false;
+      document.getElementById("statusText").textContent = "Offline";
+      document.getElementById("statusText").style.color = "#aaa";
+      alert("You are now offline");
+      setTimeout(loadHelpers, 3000);
+    } else {
+      this.checked = true;
+    }
   }
-  setTimeout(loadHelpers, 4000);
 };
 
 function login(){
@@ -186,37 +181,29 @@ function login(){
   document.getElementById("login").classList.add("hidden");
   document.getElementById("main").classList.remove("hidden");
   document.getElementById("displayName").textContent = n;
-  updateCoordsDisplay();
+  updateCoords();
   loadHelpers();
 
   navigator.geolocation?.getCurrentPosition(p => {
     user.lat = p.coords.latitude;
     user.lon = p.coords.longitude;
     saveUser();
-    updateCoordsDisplay();
+    updateCoords();
     renderHelpers();
   });
 }
 
-function toggleEditMode(){
-  document.getElementById("main").classList.toggle("hidden");
-  document.getElementById("editMode").classList.toggle("hidden");
-}
-
 function manualLocation(){
-  const i = prompt("City name or coordinates (lat,lon):");
+  const i = prompt("Enter city or coordinates (lat,lon):");
   if(!i) return;
-  const parts = i.split(/[,\s]+/).map(parseFloat);
-  if(parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])){
-    user.lat = parts[0]; user.lon = parts[1];
+  const p = i.split(/[,\s]+/).map(parseFloat);
+  if(p.length>=2 && !isNaN(p[0]) && !isNaN(p[1])){
+    user.lat = p[0]; user.lon = p[1];
+    saveUser(); updateCoords(); renderHelpers();
   } else {
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
-      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon;}});
+      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon; saveUser(); updateCoords(); renderHelpers();}});
   }
-  saveUser();
-  saveUser();
-  updateCoordsDisplay();
-  renderHelpers();
 }
 
 function sendSOS(){
@@ -227,20 +214,20 @@ function sendSOS(){
 
 function haversine(a,b,c,d){
   const toRad=x=>x*Math.PI/180; const R=6371;
-  const x1=c-a, x2=d-b;
-  const dLat=toRad(x1), dLon=toRad(x2);
-  const a2 = Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLon/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a2),Math.sqrt(1-a2));
+  const dl = toRad(c-a); const dn = toRad(d-b);
+  const x = Math.sin(dl/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dn/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
-window.addEventListener('load',()=>{
+window.addEventListener('load',() => {
   if(loadUser() && user.name){
     document.getElementById("login").classList.add("hidden");
     document.getElementById("main").classList.remove("hidden");
     document.getElementById("displayName").textContent = user.name;
-    updateCoordsDisplay();
+    updateCoords();
   }
   loadHelpers();
+  setInterval(loadHelpers, 30000); // refresh every 30 sec
 });
 </script>
 </body>
