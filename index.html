@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoadKin – Adventure Traveller Rescue Network</title>
+  <title>RoadKin</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#c00">
@@ -12,25 +12,23 @@
     @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
     h1{text-align:center;color:#c00;margin:10px 0 20px}
-    .user-bar{background:#222;padding:16px;border-radius:16px;margin-bottom:25px;text-align:center;position:relative}
+    .user-bar{background:#222;padding:16px;border-radius:16px;margin-bottom:25px;text-align:center;cursor:pointer}
     @media(prefers-color-scheme:light){.user-bar{background:#eee;color:#000}}
-    .user-name{font-size:22px;font-weight:700;cursor:pointer}
-    .user-name:hover{opacity:0.8}
+    .user-name{font-size:22px;font-weight:700}
     input,textarea,button{width:100%;padding:14px;margin:10px 0;border-radius:12px;border:none;font-size:16px;box-sizing:border-box}
-    button{background:#c00;color:white;cursor:pointer;font-weight:bold}
+    button{background:#c00;color:white;font-weight:bold;cursor:pointer}
     button.bigbtn{padding:30px;font-size:24px;margin:25px 0;border-radius:16px}
     .sos{background:#b00;animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
     .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.5}
     @media(prefers-color-scheme:light){.helper{background:#f8f8f8;color:#000}}
     .hidden{display:none}
-    .contact-btn{margin:6px 0;padding:10px;font-size:14px;width:auto;display:inline-block;background:#333}
+    .contact-btn{margin:6px 0;padding:10px;font-size:14px;width:auto;background:#333}
     @media(prefers-color-scheme:light){.contact-btn{background:#ddd;color:#000}}
     .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
-    .toggle-label{font-size:18px;font-weight:500}
     .switch{position:relative;display:inline-block;width:70px;height:38px}
-    .switch input{opacity:0;width:0;height:0}
-    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:34px;transition:.3s}
+    .switch input{opacity:0}
+    .slider{position:absolute;inset:0;background:#444;border-radius:34px;transition:.3s}
     .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
     input:checked + .slider{background:#0a0}
     input:checked + .slider:before{transform:translateX(32px)}
@@ -41,37 +39,31 @@
   <div id="app">
     <h1>RoadKin</h1>
 
-    <!-- LOGIN -->
     <div id="login" class="screen">
-      <input type="text" id="username" placeholder="Your name or nickname" required>
+      <input type="text" id="username" placeholder="Your name or nickname">
       <button class="bigbtn" onclick="login()">Enter RoadKin</button>
     </div>
 
-    <!-- MAIN SCREEN -->
     <div id="main" class="screen hidden">
       <div class="user-bar" onclick="toggleEditMode()">
-        <div class="user-name">Hi, <span id="displayName"></span> <small>↓ tap to edit your help status</small></div>
+        <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to edit help status</div>
       </div>
 
-      <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (offline)</button>
+      <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install (offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
       <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
 
-      <h2 style="margin-top:30px">Nearby Helpers (<span id="count">0</span>)</h2>
+      <h2>Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
 
-    <!-- EDIT HELP STATUS (appears when clicking name) -->
     <div id="editMode" class="screen hidden">
       <h2>What can you offer?</h2>
-      <textarea id="offer" rows="4" placeholder="garage, tools, spare room, beer, languages…"></textarea>
-      <input type="text" id="contact" placeholder="Contact (WhatsApp, email, Signal…)">
+      <textarea id="offer" rows="4" placeholder="garage, tools, beer, languages…"></textarea>
+      <input type="text" id="contact" placeholder="Contact (WhatsApp, email…)">
       <div class="toggle-row">
-        <div class="toggle-label">Available right now</div>
-        <label class="switch">
-          <input type="checkbox" id="availableNow" checked>
-          <span class="slider"></span>
-        </label>
+        <div>Available right now</div>
+        <label class="switch"><input type="checkbox" id="availableNow" checked><span class="slider"></span></label>
       </div>
       <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
       <button class="bigbtn" onclick="goOffline()" style="background:#900">GO OFFLINE</button>
@@ -80,87 +72,39 @@
   </div>
 
   <script>
-    let user = { name: "", lat: null, lon: null, isHelper: false };
+    let user = { name: "", lat: null, lon: null };
     let helpers = [];
-    let deferredPrompt = null;
 
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-    function loadUser() {
-      const saved = localStorage.getItem('roadkin_user');
-      if (saved) { user = JSON.parse(saved); return true; }
-      return false;
-    }
+    function loadUser() { const s = localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
 
     async function loadHelpers() {
       try {
-        const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
-        if (!resp.ok) throw "";
-        const text = await resp.text();
+        const r = await fetch(SHEET_CSV + '&t=' + Date.now());
+        const text = await r.text();
         const rows = text.split('\n').slice(1).filter(r => r.trim());
+
         helpers = rows.map(row => {
-          const c = row.split(',').map(f => f.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
-          if (c.length < 6 || !c[0]) return null;
-          return {
-            name: c[0],
-            lat: parseFloat(c[1]) || 0,
-            lon: parseFloat(c[2]) || 0,
-            offer: c[3] || "Can help",
-            contact: c[4] || "",
-            availableNow: c[5].toLowerCase() === "yes"
-          };
+          // NEW BULLETPROOF PARSER — works with spaces, no commas, anything
+          const parts = row.trim().match(/[\w.@+-]+|"(.*?)"|\S+/g) || [];
+          if (parts.length < 6) return null;
+
+          const name = parts[0];
+          const lat = parseFloat(parts[1]) || 0;
+          const lon = parseFloat(parts[2]) || 0;
+          const offer = parts[3] || "Can help";
+          const contact = parts[4] || "";
+          const available = (parts[5] || "").toLowerCase() === "yes" || (parts[5] || "").toLowerCase() === "true";
+
+          if (!name || !lat || !lon) return null;
+          return { name, lat, lon, offer, contact, availableNow: available };
         }).filter(Boolean);
+
         renderHelpers();
       } catch(e) {
-        document.getElementById("helpers").innerHTML = "<i>No internet – showing last known helpers</i>";
-      }
-    }
-
-    window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block';});
-    function installApp(){deferredPrompt?.prompt();}
-
-    function login() {
-      const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Enter your name");
-      user.name = name;
-      saveUser();
-      document.getElementById("login").classList.add("hidden");
-      document.getElementById("main").classList.remove("hidden");
-      document.getElementById("displayName").textContent = name;
-      loadHelpers();
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(p => {
-          user.lat = p.coords.latitude;
-          user.lon = p.coords.longitude;
-          saveUser();
-          renderHelpers();
-        });
-      }
-    }
-
-    function toggleEditMode() {
-      document.getElementById("main").classList.toggle("hidden");
-      document.getElementById("editMode").classList.toggle("hidden");
-      // Pre-fill current values if you're already live
-      const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-      if (me) {
-        document.getElementById("offer").value = me.offer;
-        document.getElementById("contact").value = me.contact;
-        document.getElementById("availableNow").checked = me.availableNow;
-      }
-    }
-
-    function manualLocation() {
-      const input = prompt("City or coordinates:", "");
-      if (!input) return;
-      if (/^-?\d/.test(input.trim())) {
-        const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
-        if (lat && lon) { user.lat = lat; user.lon = lon; saveUser(); renderHelpers(); }
-      } else {
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
-          .then(r => r.json())
-          .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; saveUser(); renderHelpers(); } });
+        document.getElementById("helpers").innerHTML = "<i>No internet – last known helpers</i>";
       }
     }
 
@@ -173,16 +117,14 @@
         .slice(0,30);
 
       document.getElementById("count").textContent = nearby.length;
-      if (nearby.length === 0) {
-        list.innerHTML = "<i>No one online right now – tap your name to help!</i>";
-        return;
-      }
+      if (!nearby.length) { list.innerHTML = "<i>Be the first to help!</i>"; return; }
+
       nearby.forEach(h => {
         const d = document.createElement("div"); d.className="helper";
-        const dist = h.dist < 9999 ? Math.round(h.dist) + " km away" : "Far off-road";
+        const dist = h.dist < 9999 ? Math.round(h.dist)+" km" : "Far off-road";
         let contact = h.contact ? `<br>Contact: ${h.contact} ` : "";
         if (h.contact?.includes('@')) contact += `<button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
-        else if (/^\+?\d{8,15}$/.test(h.contact?.replace(/\D/g,''))) {
+        else if (/^\+?\d+$/.test(h.contact.replace(/\D/g,''))) {
           const num = h.contact.replace(/\D/g,'');
           contact += `<button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
         }
@@ -191,8 +133,45 @@
       });
     }
 
+    function login() {
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Enter name");
+      user.name = name; saveUser();
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("main").classList.remove("hidden");
+      document.getElementById("displayName").textContent = name;
+      loadHelpers();
+      navigator.geolocation?.getCurrentPosition(p => {
+        user.lat = p.coords.latitude; user.lon = p.coords.longitude; saveUser(); renderHelpers();
+      });
+    }
+
+    function toggleEditMode() {
+      document.getElementById("main").classList.toggle("hidden");
+      document.getElementById("editMode").classList.toggle("hidden");
+
+      const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
+      if (me) {
+        document.getElementById("offer").value = me.offer;
+        document.getElementById("contact").value = me.contact;
+        document.getElementById("availableNow").checked = me.availableNow;
+      }
+    }
+
+    function manualLocation() {
+      const i = prompt("City or coordinates:");
+      if (!i) return;
+      if (/^-?\d/.test(i.trim())) {
+        const [lat,lon] = i.split(/[,\s]+/).map(parseFloat);
+        if(lat&&lon){user.lat=lat;user.lon=lon;saveUser();renderHelpers();}
+      } else {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
+          .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat;user.lon=+d[0].lon;saveUser();renderHelpers();}});
+      }
+    }
+
     function sendSOS() {
-      if (!user.lat) return alert("Location needed");
+      if (!user.lat) return alert("Set location first");
       const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     }
@@ -209,39 +188,25 @@
         '&entry.1612978471=' + user.lon.toFixed(6) +
         '&entry.1742973672=' + encodeURIComponent(offer) +
         '&entry.1366145812=' + available +
-        (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
+        (contact ? '&entry.XXXXXX=' + encodeURIComponent(contact) : '') +
         '&usp=pp_url&submit=Submit';
 
-      fetch(url, {method: 'GET', mode: 'no-cors'});
-      alert("You are LIVE! Thank you hero");
+      fetch(url,{method:'GET',mode:'no-cors'});
+      alert("You are now LIVE!");
       toggleEditMode();
-      setTimeout(loadHelpers, 4000);
+      setTimeout(loadHelpers,4000);
     }
 
-    function goOffline() {
-      alert("You are now offline. Thank you for helping!");
-      toggleEditMode();
-      // In real life we'd delete the row — for now just refresh will hide you
-      setTimeout(loadHelpers, 3000);
+    function goOffline() { alert("You are now offline"); toggleEditMode(); setTimeout(loadHelpers,3000); }
+
+    function logout() { if(confirm("Log out?")){localStorage.clear();location.reload();} }
+
+    function haversine(lat1,lon1,lat2,lon2){
+      const toRad=x=>x*Math.PI/180; const R=6371;
+      const a = Math.sin(toRad(lat2-lat1)/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(toRad(lon2-lon1)/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
 
-    function logout() {
-      if (confirm("Log out?")) {
-        localStorage.removeItem('roadkin_user');
-        location.reload();
-      }
-    }
-
-    function haversine(lat1,lon1,lat2,lon2) {
-      const toRad = x => x * Math.PI / 180;
-      const R = 6371;
-      const dLat = toRad(lat2-lat1);
-      const dLon = toRad(lon2-lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    // AUTO-LOGIN
     window.addEventListener('load', () => {
       if (loadUser() && user.name) {
         document.getElementById("login").classList.add("hidden");
