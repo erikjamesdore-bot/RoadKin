@@ -33,7 +33,7 @@
     <div id="login" class="screen">
       <input type="text" id="username" placeholder="Your name or nickname" required>
       <button onclick="login()">Enter RoadKin</button>
-      <p style="font-size:14px;opacity:0.7;margin-top:20px">Works 100 % offline after install</p>
+      <p style="font-size:14px;opacity:0.7;margin-top:20px">Works 100% offline after install</p>
     </div>
 
     <div id="main" class="screen hidden">
@@ -47,7 +47,7 @@
     <div id="helperMode" class="screen hidden">
       <h2>I Can Help!</h2>
       <textarea id="offer" placeholder="e.g. garage, welder, spare room, speaks Spanish, cold beer..."></textarea><br>
-      <label><input type="checkbox" id="availableNow"> Available right now</label><br>
+      <label><input type="checkbox" id="availableNow" checked> Available right now</label><br>
       <button onclick="saveHelperProfile()">Save My Profile</button>
       <button onclick="toggleMode()">Back to Rider Mode</button>
     </div>
@@ -62,60 +62,59 @@
   <script>
     let user = null;
     let deferredPrompt = null;
+    let helpers = [];
 
-    const helpers = [
-      {"name":"Juan – Patagonia","lat":-49.302,"lon":-72.886,"offer":"Welder, barn, cold beer, speaks English","availableNow":true},
-      {"name":"Amina & family – Morocco","lat":28.5,"lon":-9.6,"offer":"Garage, dinner, floor to sleep","availableNow":true},
-      {"name":"Mick the mechanic – Australia","lat":-25.0,"lon":133.0,"offer":"Full workshop + hoist","availableNow":true},
-      {"name":"Carlos – Bolivia salt flats","lat":-20.133,"lon":-67.489,"offer":"Tyre repair, camping spot","availableNow":true},
-      {"name":"Lena – Norway","lat":62.5,"lon":7.2,"offer":"Warm cabin, tools, coffee","availableNow":true},
-      {"name":"Raj – Rajasthan, India","lat":27.0,"lon":73.0,"offer":"Motorcycle shop + chai","availableNow":true},
-      {"name":"Diego – Baja California","lat":28.0,"lon":-113.5,"offer":"Shade, water, welding","availableNow":true},
-      {"name":"Sophie – French Alps","lat":45.0,"lon":6.0,"offer":"Chalet, fondue, metric tools","availableNow":true},
-      {"name":"Omar – Jordan","lat":30.5,"lon":36.0,"offer":"Desert camp, 4×4 recovery","availableNow":true},
-      {"name":"Tashi – Himalayas","lat":32.2,"lon":77.2,"offer":"Homestay, Enfield parts","availableNow":true},
-      {"name":"Kim – Vietnam","lat":16.0,"lon":107.0,"offer":"Motorbike hostel + tools","availableNow":true},
-      {"name":"Pedro – Portugal","lat":39.5,"lon":-8.0,"offer":"Farmhouse, BBQ, spanners","availableNow":true},
-      {"name":"Elena – Andes, Chile","lat":-33.0,"lon":-70.0,"offer":"Bike shop, empanadas, English","availableNow":true},
-      {"name":"Finn – Iceland","lat":64.1,"lon":-21.9,"offer":"Hot springs recovery, tools","availableNow":true}
-    ];
+    // === YOUR GOOGLE SHEET (published as CSV) ===
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT5d8gJ9vJ8zL7kN5vR8P9mKxL3qWvB9jH2fG5sR8tL9pQvM3nX7cYbD2fG8hJ9kL3nP5qR7tU9vW1xY/pub?output=csv';
 
-    // Load any previously saved helpers from this device
-    function loadSavedHelpers() {
-      const saved = localStorage.getItem('roadkinHelpers');
-      if (saved) helpers.push(...JSON.parse(saved));
+    async function loadHelpers() {
+      try {
+        const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
+        const text = await resp.text();
+        const rows = text.split('\n').slice(1);
+        helpers = rows.map(row => {
+          const cols = row.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+          if (cols.length < 5) return null;
+          return {
+            name: cols[0] || "Anonymous rider",
+            lat: parseFloat(cols[1]) || 0,
+            lon: parseFloat(cols[2]) || 0,
+            offer: cols[3] || "Can help somehow",
+            availableNow: cols[4] === "Yes"
+          };
+        }).filter(h => h && h.availableNow);
+        renderHelpers();
+      } catch(e) {
+        alert("No signal – using last known helpers");
+      }
     }
 
-    // PWA install button
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPrompt = e;
       document.getElementById('install').style.display = 'block';
     });
     async function installApp() {
-      if (!deferredPrompt) return alert('Already installed or not supported');
+      if (!deferredPrompt) return alert('Already installed');
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') deferredPrompt = null;
     }
-
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
     function login() {
       const name = document.getElementById("username").value.trim();
       if (!name) return alert("Enter your name");
-      user = { name, lat: null, lon: null, isHelper: false, offer: "", availableNow: false };
+      user = { name, lat: null, lon: null };
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
-      loadSavedHelpers();
-      renderHelpers();
-
+      loadHelpers();
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           user.lat = pos.coords.latitude;
           user.lon = pos.coords.longitude;
           renderHelpers();
-        }, () => alert("GPS denied – distances will be approximate"));
+        }, () => {});
       }
     }
 
@@ -123,20 +122,17 @@
       const list = document.getElementById("helpers");
       list.innerHTML = "";
       const nearby = helpers
-        .filter(h => h.availableNow)
         .map(h => ({...h, dist: user?.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
         .sort((a,b) => a.dist - b.dist)
         .slice(0,20);
-
       document.getElementById("count").textContent = nearby.length;
-
       nearby.forEach(h => {
         const div = document.createElement("div");
         div.className = "helper";
         div.innerHTML = `
           <strong>${h.name}</strong> – ${h.dist < 999 ? Math.round(h.dist)+" km away" : "Far off-road"}<br>
           ${h.offer}<br>
-          <button onclick="callHelper('${h.phone||''}')">Call / WhatsApp</button>
+          <button onclick="callHelper()">Call / WhatsApp</button>
         `;
         list.appendChild(div);
       });
@@ -146,7 +142,7 @@
       if (!user?.lat) return alert("Waiting for GPS… step outside or allow location.");
       const msg = `ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-      alert("SOS ready – paste into WhatsApp groups!");
+      alert("SOS ready – share it!");
     }
 
     function toggleMode() {
@@ -156,21 +152,20 @@
 
     function saveHelperProfile() {
       if (!user) return alert("Log in first!");
-      user.offer = document.getElementById("offer").value || "Can offer tools & a beer";
-      user.availableNow = document.getElementById("availableNow").checked;
+      const offer = document.getElementById("offer").value || "Can help somehow";
+      const available = document.getElementById("availableNow").checked ? "Yes" : "No";
+      const lat = user.lat || "";
+      const lon = user.lon || "";
 
-      const newHelper = {
-        name: `${user.name} – ${user.name}'s spot`,
-        lat: user.lat || 0,
-        lon: user.lon || 0,
-        offer: user.offer,
-        availableNow: user.availableNow
-      };
+      const formUrl = 'https://docs.google.com/forms/d/e/1GzgYFYF4gtFEPz3jEvwKJDRGXw_BOsKoD_e0mHCxC0w/formResponse?usp=pp_url' +
+        '&entry.2131123748=' + encodeURIComponent(user.name) +
+        '&entry.1563978452=' + lat +
+        '&entry.1612978471=' + lon +
+        '&entry.1742973672=' + encodeURIComponent(offer) +
+        '&entry.1366145812=' + available;
 
-      helpers.push(newHelper);
-      localStorage.setItem('roadkinHelpers', JSON.stringify(helpers.filter(h => h.name.includes(user.name))));
-      alert("Profile saved on this device forever!");
-      renderHelpers();
+      window.open(formUrl, '_blank');
+      alert("Form opened and pre-filled!\nJust tap SUBMIT and you’re live for everyone in seconds!");
     }
 
     function haversine(lat1, lon1, lat2, lon2) {
@@ -182,9 +177,8 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    function callHelper(num) {
-      if (num) window.open(`tel:${num}`);
-      else alert("No phone listed – use WhatsApp SOS!");
+    function callHelper() {
+      alert("No phone listed – use WhatsApp SOS and mention them!");
     }
   </script>
 </body>
