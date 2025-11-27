@@ -1,211 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoadKin</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <meta name="theme-color" content="#c00">
-  <style>
-    body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
-    @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
-    #app{max-width:480px;margin:40px auto;padding:20px}
-    h1{text-align:center;color:#c00;margin:10px 0 20px}
-    .user-bar{background:#222;padding:16px;border-radius:16px;margin-bottom:25px;text-align:center;cursor:pointer}
-    @media(prefers-color-scheme:light){.user-bar{background:#eee;color:#000}}
-    .user-name{font-size:22px;font-weight:700}
-    input,textarea,button{width:100%;padding:14px;margin:10px 0;border-radius:12px;border:none;font-size:16px;box-sizing:border-box}
-    button{background:#c00;color:white;font-weight:bold;cursor:pointer}
-    button.bigbtn{padding:30px;font-size:24px;margin:25px 0;border-radius:16px}
-    .sos{background:#b00;animation:pulse 2s infinite}
-    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
-    .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.5}
-    @media(prefers-color-scheme:light){.helper{background:#f8f8f8;color:#000}}
-    .hidden{display:none}
-    .contact-btn{margin:6px 0;padding:10px;font-size:14px;width:auto;background:#333}
-    @media(prefers-color-scheme:light){.contact-btn{background:#ddd;color:#000}}
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
-    .switch{position:relative;display:inline-block;width:70px;height:38px}
-    .switch input{opacity:0}
-    .slider{position:absolute;inset:0;background:#444;border-radius:34px;transition:.3s}
-    .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
-    input:checked + .slider{background:#0a0}
-    input:checked + .slider:before{transform:translateX(32px)}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadKin</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
+  @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
+  #app{max-width:480px;margin:40px auto;padding:20px}
+  h1{text-align:center;color:#c00}
+  .user-bar{background:#222;padding:16px;border-radius:16px;margin-bottom:25px;text-align:center;cursor:pointer}
+  .user-name{font-size:22px;font-weight:700}
+  button{width:100%;padding:16px;margin:12px 0;border:none;border-radius:12px;font-size:18px;cursor:pointer}
+  .bigbtn{padding:32px;font-size:24px}
+  .sos{background:#b00;animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px}
+  .hidden{display:none}
+  .switch{position:relative;display:inline-block;width:70px;height:38px}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:#444;border-radius:34px;transition:.3s}
+  .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
+  input:checked + .slider{background:#0a0}
+  input:checked + .slider:before{transform:translateX(32px)}
+</style>
 </head>
 <body>
-  <div id="app">
-    <h1>RoadKin</h1>
+<div id="app">
+  <h1>RoadKin</h1>
 
-    <div id="login" class="screen">
-      <input type="text" id="username" placeholder="Your name or nickname">
-      <button class="bigbtn" onclick="login()">Enter RoadKin</button>
-    </div>
-
-    <div id="main" class="screen hidden">
-      <div class="user-bar" onclick="toggleEditMode()">
-        <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to help</div>
-      </div>
-
-      <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-      <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
-
-      <h2>Nearby Helpers (<span id="count">0</span>)</h2>
-      <div id="helpers"></div>
-    </div>
-
-    <div id="editMode" class="screen hidden">
-      <h2>What can you offer?</h2>
-      <textarea id="offer" rows="4" placeholder="garage, beer, tools…"></textarea>
-      <input type="text" id="contact" placeholder="WhatsApp / email (optional)">
-      <div class="toggle-row">
-        <div>Available right now</div>
-        <label class="switch"><input type="checkbox" id="availableNow" checked><span class="slider"></span></label>
-      </div>
-      <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
-      <button class="bigbtn" onclick="toggleEditMode()" style="background:#900">Cancel</button>
-    </div>
+  <div id="login" class="screen">
+    <input type="text" id="username" placeholder="Your name">
+    <button class="bigbtn" onclick="login()">Enter</button>
   </div>
 
-  <script>
-    let user = { name: "", lat: null, lon: null };
-    let helpers = [];
+  <div id="main" class="screen hidden">
+    <div class="user-bar" onclick="toggleEditMode()">
+      <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to help</div>
+    </div>
+    <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
+    <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location</button>
+    <h2>Nearby Helpers (<span id="count">0</span>)</h2>
+    <div id="helpers"></div>
+  </div>
 
-    // Your current published Helpers CSV URL
-    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
+  <div id="editMode" class="screen hidden">
+    <h2>What can you offer?</h2>
+    <textarea id="offer" rows="4" placeholder="garage, beer, tools…"></textarea>
+    <input type="text" id="contact" placeholder="WhatsApp / email">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0">
+      <div>Available now</div>
+      <label class="switch"><input type="checkbox" id="availableNow" checked><span class="slider"></span></label>
+    </div>
+    <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
+    <button class="bigbtn" onclick="toggleEditMode()" style="background:#900">Cancel</button>
+  </div>
+</div>
 
-    function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-    function loadUser() { const s = localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s);return true} return false; }
+<script>
+let user = { name: "", lat: null, lon: null };
+let helpers = [];
 
-    async function loadHelpers() {
-      try {
-        const r = await fetch(SHEET_CSV + '&t=' + Date.now());
-        const text = await r.text();
-        const lines = text.split('\n');
+// YOUR CURRENT HELPERS CSV URL
+const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
-        helpers = [];
+function saveUser(){ localStorage.setItem('roadkin_user', JSON.stringify(user)); }
+function loadUser(){ const s = localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
 
-        for (let line of lines) {
-          if (!line.trim() || line.includes('Name,Latitude')) continue;
+async function loadHelpers(){
+  try{
+    const r = await fetch(SHEET_CSV + '&t=' + Date.now());
+    const text = await r.text();
+    const lines = text.split('\n').slice(1).filter(l => l.trim());
+    helpers = lines.map(l => {
+      const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
+      if(c.length < 6) return null;
+      return {
+        name: c[0],
+        lat: parseFloat(c[1]),
+        lon: parseFloat(c[2]),
+        offer: c[3] || "Can help",
+        contact: c[4] || "",
+        availableNow: c[5].toLowerCase() === "yes"
+      };
+    }).filter(Boolean);
+    renderHelpers();
+  }catch(e){
+    document.getElementById("helpers").innerHTML = "<i>No internet</i>";
+  }
+}
 
-          // Find name (first non-empty cell after column A)
-          const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-          if (cols.length < 6) continue;
+function renderHelpers(){
+  const list = document.getElementById("helpers"); list.innerHTML = "";
+  const nearby = helpers.filter(h => h.availableNow)
+    .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 99999}))
+    .sort((a,b) => a.dist - b.dist);
+  document.getElementById("count").textContent = nearby.length;
+  if(!nearby.length){ list.innerHTML = "<i>No one online yet – tap your name!</i>"; return; }
+  nearby.forEach(h => {
+    const div = document.createElement("div"); div.className = "helper";
+    const dist = h.dist < 99999 ? Math.round(h.dist) + " km away" : "Far off-road";
+    div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}`;
+    list.appendChild(div);
+  });
+}
 
-          // Your current sheet has data shifted right → name is in column B
-          const name = cols[1] || cols[0];
-          const lat = parseFloat(cols[2] || cols[1]);
-          const lon = parseFloat(cols[3] || cols[2]);
-          const offer = (cols[4] || cols[3] || "Can help").trim();
-          const contact = (cols[5] || cols[4] || "").trim();
-          const available = (cols[6] || cols[5] || "yes").toLowerCase().includes("yes");
+function login(){
+  const n = document.getElementById("username").value.trim();
+  if(!n) return alert("Name required");
+  user.name = n; saveUser();
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("main").classList.remove("hidden");
+  document.getElementById("displayName").textContent = n;
+  loadHelpers();
+  navigator.geolocation?.getCurrentPosition(p => {
+    user.lat = p.coords.latitude; user.lon = p.coords.longitude; saveUser(); renderHelpers();
+  });
+}
 
-          if (name && !isNaN(lat) && !isNaN(lon)) {
-            helpers.push({ name, lat, lon, offer, contact, availableNow: available });
-          }
-        }
+function toggleEditMode(){
+  document.getElementById("main").classList.toggle("hidden");
+  document.getElementById("editMode").classList.toggle("hidden");
+}
 
-        renderHelpers();
-      } catch(e) {
-        document.getElementById("helpers").innerHTML = "<i>No internet</i>";
-      }
-    }
+function manualLocation(){
+  const i = prompt("City or lat,lon:");
+  if(!i) return;
+  const nums = i.split(/[,\s]+/).map(parseFloat);
+  if(nums.length >= 2 && !isNaN(nums[0]) && !isNaN(nums[1])){
+    user.lat = nums[0]; user.lon = nums[1]; saveUser(); renderHelpers();
+  } else {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
+      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon; saveUser(); renderHelpers();}});
+  }
+}
 
-    function renderHelpers() {
-      const list = document.getElementById("helpers"); list.innerHTML = "";
-      const nearby = helpers
-        .filter(h => h.availableNow)
-        .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
-        .sort((a,b) => a.dist - b.dist);
+function sendSOS(){
+  if(!user.lat) return alert("Set location first");
+  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}`;
+  location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+}
 
-      document.getElementById("count").textContent = nearby.length;
-      if (!nearby.length) { list.innerHTML = "<i>No one online – tap your name to help!</i>"; return; }
+function goLive(){
+  if(!user.lat) return alert("Location required");
+  const offer = document.getElementById("offer").value.trim() || "Can help";
+  const available = document.getElementById("availableNow").checked ? "yes" : "no";
+  const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
+    'entry.2131123748=' + encodeURIComponent(user.name) +
+    '&entry.1563978452=' + user.lat.toFixed(6) +
+    '&entry.1612978471=' + user.lon.toFixed(6) +
+    '&entry.1742973672=' + encodeURIComponent(offer) +
+    '&entry.1366145812=' + available +
+    '&usp=pp_url&submit=Submit';
+  fetch(url,{method:'GET',mode:'no-cors'});
+  alert("You are LIVE! Thank you hero");
+  toggleEditMode();
+  setTimeout(loadHelpers,4000);
+}
 
-      nearby.forEach(h => {
-        const d = document.createElement("div"); d.className="helper";
-        const dist = h.dist < 9999 ? Math.round(h.dist)+" km away" : "Far off-road";
-        let contact = h.contact ? `<br>Contact: ${h.contact} ` : "";
-        if (h.contact?.includes('@')) contact += `<button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
-        else if (/^\+?\d+$/.test(h.contact.replace(/\D/g,''))) {
-          const num = h.contact.replace(/\D/g,'');
-          contact += `<button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
-        }
-        d.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
-        list.appendChild(d);
-      });
-    }
+function haversine(a,b,c,d){
+  const toRad = x=>x*Math.PI/180;
+  const R = 6371;
+  const x1 = c-a, x2 = d-b;
+  const dLat = toRad(x1), dLon = toRad(x2);
+  const a2 = Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a2),Math.sqrt(1-a2));
+}
 
-    function login() {
-      const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Enter name");
-      user.name = name; saveUser();
-      document.getElementById("login").classList.add("hidden");
-      document.getElementById("main").classList.remove("hidden");
-      document.getElementById("displayName").textContent = name;
-      loadHelpers();
-      navigator.geolocation?.getCurrentPosition(p => {
-        user.lat = p.coords.latitude; user.lon = p.coords.longitude; saveUser(); renderHelpers();
-      });
-    }
-
-    function toggleEditMode() {
-      document.getElementById("main").classList.toggle("hidden");
-      document.getElementById("editMode").classList.toggle("hidden");
-    }
-
-    function manualLocation() {
-      const i = prompt("City or coordinates:");
-      if (!i) return;
-      if (/^-?\d/.test(i.trim())) {
-        const [lat,lon] = i.split(/[,\s]+/).map(parseFloat);
-        if(lat&&lon){user.lat=lat;user.lon=lon;saveUser();renderHelpers();}
-      } else {
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
-          .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat;user.lon=+d[0].lon;saveUser();renderHelpers();}});
-      }
-    }
-
-    function sendSOS() {
-      if (!user.lat) return alert("Set location first");
-      const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
-      location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    }
-
-    function goLive() {
-      if (!user.lat) return alert("Location required");
-      const offer = document.getElementById("offer").value.trim() || "Can help";
-      const contact = document.getElementById("contact").value.trim();
-      const available = document.getElementById("availableNow").checked ? "yes" : "no";
-
-      const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
-        'entry.2131123748=' + encodeURIComponent(user.name) +
-        '&entry.1563978452=' + user.lat.toFixed(6) +
-        '&entry.1612978471=' + user.lon.toFixed(6) +
-        '&entry.1742973672=' + encodeURIComponent(offer) +
-        '&entry.1366145812=' + available +
-        '&usp=pp_url&submit=Submit';
-
-      fetch(url,{method:'GET',mode:'no-cors'});
-      alert("You are now LIVE! Thank you hero");
-      toggleEditMode();
-      setTimeout(loadHelpers,4000);
-    }
-
-    function haversine(lat1,lon1,lat2,lon2){
-      const toRad=x=>x*Math.PI/180; const R=6371;
-      const a = Math.sin(toRad(lat2-lat1)/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(toRad(lon2-lon1)/2)**2;
-      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-    }
-
-    window.addEventListener('load', () => {
-      if (loadUser() && user.name) {
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("main").classList.remove("hidden");
-        document.getElementById("displayName").textContent = user.name;
-      }
-      loadHelpers();
-    });
-  </script>
+window.addEventListener('load',() => {
+  if(loadUser() && user.name){
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("main").classList.remove("hidden");
+    document.getElementById("displayName").textContent = user.name;
+  }
+  loadHelpers();
+});
+</script>
 </body>
 </html>
