@@ -60,7 +60,7 @@
 
   <div id="edit" class="screen hidden">
     <h2>What can you offer?</h2>
-    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room, welding, Spanish…"></textarea>
+    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room, welding…"></textarea>
     <input type="text" id="contact" placeholder="WhatsApp, email, Signal (optional)">
     <button class="bigbtn" onclick="openEdit()" style="background:#900;margin-top:20px">← Back</button>
   </div>
@@ -72,15 +72,23 @@ let helpers = [];
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
+// CORRECT FORM FIELD IDs (this was the real bug!)
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse';
+const ENTRY_NAME      = 'entry.2131123748';
+const ENTRY_LAT       = 'entry.1563978452';
+const ENTRY_LON       = 'entry.1612978471';
+const ENTRY_OFFER     = 'entry.1742973672';
+const ENTRY_CONTACT   = 'entry.1092196062';   // ← this was the missing one!
+const ENTRY_AVAILABLE = 'entry.1366145812';
+
 function saveUser(){ localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
+function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s);return true} return false; }
 
 async function loadHelpers(){
   try{
     const r = await fetch(SHEET_CSV + '&t=' + Date.now());
     const text = await r.text();
     const lines = text.split('\n').slice(1).filter(l => l.trim());
-
     helpers = lines.map(l => {
       const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
       if(c.length < 6) return null;
@@ -94,7 +102,6 @@ async function loadHelpers(){
       };
     }).filter(Boolean);
 
-    // Restore my offer/contact from localStorage if not in sheet yet
     const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
     if(me){
       user.offer = me.offer;
@@ -103,18 +110,9 @@ async function loadHelpers(){
       document.getElementById("contact").value = me.contact;
     }
 
-    // Update toggle from sheet
-    const toggle = document.getElementById("availToggle");
-    const status = document.getElementById("statusText");
-    if(me && me.availableNow){
-      toggle.checked = true;
-      status.textContent = "ONLINE";
-      status.style.color = "#0f0";
-    } else {
-      toggle.checked = false;
-      status.textContent = "Offline";
-      status.style.color = "#aaa";
-    }
+    document.getElementById("availToggle").checked = !!me?.availableNow;
+    document.getElementById("statusText").textContent = me?.availableNow ? "ONLINE" : "Offline";
+    document.getElementById("statusText").style.color = me?.availableNow ? "#0f0" : "#aaa";
 
     renderHelpers();
   }catch(e){
@@ -129,29 +127,20 @@ function renderHelpers(){
     .sort((a,b) => a.dist - b.dist);
 
   document.getElementById("count").textContent = nearby.length;
-
-  if(nearby.length === 0){
-    list.innerHTML = "<i>No one online – be the first!</i>";
-    return;
-  }
+  if(nearby.length === 0){ list.innerHTML = "<i>No one online – be the first!</i>"; return; }
 
   nearby.forEach(h => {
-    const div = document.createElement("div");
-    div.className = "helper";
-    const dist = h.dist < 99999 ? Math.round(h.dist) + " km away" : "Far off-road";
-
+    const div = document.createElement("div"); div.className="helper";
+    const dist = h.dist < 99999 ? Math.round(h.dist)+" km away" : "Far off-road";
     let contactHTML = "";
     if(h.contact){
-      if(h.contact.includes('@')){
+      if(h.contact.includes('@'))
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
-      } else if(/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,''))){
-        const num = h.contact.replace(/\D/g,'');
-        contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${num}'">WhatsApp</button>`;
-      } else {
+      else if(/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,'')))
+        contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${h.contact.replace(/\D/g,'')}'">WhatsApp</button>`;
+      else
         contactHTML = `<br>Contact: ${h.contact}`;
-      }
     }
-
     div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contactHTML}`;
     list.appendChild(div);
   });
@@ -170,22 +159,18 @@ function updateCoords(){
 }
 
 function sendToSheet(available){
-  if(!user.lat) return false;
+  if(!user.lat){ alert("Location required"); return false; }
   const offer = document.getElementById("offer").value.trim() || "Can help";
   const contact = document.getElementById("contact").value.trim();
 
-  // Save to localStorage too
-  user.offer = offer;
-  user.contact = contact;
-  saveUser();
+  user.offer = offer; user.contact = contact; saveUser();
 
-  const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
-    'entry.2131123748=' + encodeURIComponent(user.name) +
-    '&entry.1563978452=' + user.lat.toFixed(6) +
-    '&entry.1612978471=' + user.lon.toFixed(6) +
-    '&entry.1742973672=' + encodeURIComponent(offer) +
-    '&entry.1366145812=' + (available ? 'yes' : 'no') +
-    (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
+  const url = `${FORM_URL}?${ENTRY_NAME}=${encodeURIComponent(user.name)}` +
+    `&${ENTRY_LAT}=${user.lat.toFixed(6)}` +
+    `&${ENTRY_LON}=${user.lon.toFixed(6)}` +
+    `&${ENTRY_OFFER}=${encodeURIComponent(offer)}` +
+    `&${ENTRY_AVAILABLE}=${available?"yes":"no"}` +
+    (contact ? `&${ENTRY_CONTACT}=${encodeURIComponent(contact)}` : "") +
     '&usp=pp_url&submit=Submit';
 
   fetch(url,{method:'GET',mode:'no-cors'});
@@ -197,8 +182,8 @@ document.getElementById("availToggle").onchange = function(){
   if(sendToSheet(state)){
     document.getElementById("statusText").textContent = state ? "ONLINE" : "Offline";
     document.getElementById("statusText").style.color = state ? "#0f0" : "#aaa";
-    alert(state ? "You are LIVE worldwide! Thank you" : "You are offline");
-    setTimeout(loadHelpers, 5000);
+    alert(state ? "You are LIVE! Thank you hero" : "You are offline");
+    setTimeout(loadHelpers, 7000);  // give Google 7 seconds
   } else {
     this.checked = !state;
   }
@@ -222,10 +207,8 @@ function login(){
   loadHelpers();
 
   navigator.geolocation?.getCurrentPosition(p => {
-    user.lat = p.coords.latitude;
-    user.lon = p.coords.longitude;
-    saveUser();
-    updateCoords();
+    user.lat = p.coords.latitude; user.lon = p.coords.longitude;
+    saveUser(); updateCoords();
   });
 }
 
@@ -233,28 +216,25 @@ function manualLocation(){
   const i = prompt("City or lat,lon:");
   if(!i) return;
   const p = i.split(/[,\s]+/).map(parseFloat);
-  if(p.length>=2 && !isNaN(p[0])){
-    user.lat = p[0]; user.lon = p[1];
-    saveUser(); updateCoords();
-  } else {
+  if(p.length>=2 && !isNaN(p[0])){ user.lat=p[0]; user.lon=p[1]; }
+  else{
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
-      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon; saveUser(); updateCoords();}});
+      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon;}});
   }
+  saveUser(); updateCoords();
 }
 
 function sendSOS(){
   if(!user.lat) return alert("Location needed");
-  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
+  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}`;
   location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 
 function haversine(lat1,lon1,lat2,lon2){
-  const toRad = x => x * Math.PI / 180;
-  const R = 6371;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const toRad=x=>x*Math.PI/180,R=6371;
+  const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 window.onload = () => {
