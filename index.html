@@ -64,15 +64,15 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // YOUR LIVE GOOGLE SHEET
-    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=700915225&single=true&output=csv';
+    // CLEAN LIVE SHEET (no timestamp column)
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
       try {
         const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
         if (!resp.ok) throw new Error();
         const text = await resp.text();
-        const rows = text.split('\n').slice(1);
+        const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
           const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
           if (c.length < 5) return null;
@@ -81,7 +81,7 @@
             lat: parseFloat(c[1]) || 0,
             lon: parseFloat(c[2]) || 0,
             offer: c[3] || "Can help",
-            availableNow: c[4] === "Yes"
+            availableNow: c[4].toLowerCase() === "yes"
           };
         }).filter(Boolean);
         renderHelpers();
@@ -143,7 +143,7 @@
         '&entry.1366145812=' + available;
 
       window.open(url, '_blank');
-      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live for everyone in seconds.");
+      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live worldwide in seconds.");
     }
 
     function haversine(lat1,lon1,lat2,lon2){
