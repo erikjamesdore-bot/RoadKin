@@ -5,39 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RoadKin</title>
 <style>
-  body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#0d00;color:#fff;margin:0;padding:0}
   @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
-  #app{max-width:480px;margin:40px auto;padding:20px}
-  h1{text-align:center;color:#c00;margin-bottom:10px}
-  .user-bar{background:#222;padding:18px;border-radius:16px;margin-bottom:20px;cursor:pointer}
-  .user-name{font-size:23px;font-weight:700}
-  .coords{font-size:14px;opacity:0.8;margin:8px 0;word-break:break-all}
-  button{width:100%;padding:16px;margin:12px 0;border:none;border-radius:12px;font-size:18px;cursor:pointer}
-  .bigbtn{padding:32px;font-size:24px}
-  .sos{background:#b00;animation:pulse 2s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px transparent}100%{box-shadow:0 0 0 0 transparent}}
-  .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.6}
+  #app{max-width:480px;margin:30px auto;padding:20px;position:relative}
+  h1{text-align:center;color:#fff;margin:0 0 30px;font-size:28px}
+  @media(prefers-color-scheme:light){h1{color:#c00}}
+  .logout{position:absolute;top:10px;right:10px;background:#900;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:14px}
+  .user-bar{background:#000;padding:20px;border-radius:18px;margin-bottom:25px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4)}
+  @media(prefers-color-scheme:light){.user-bar{background:#fff;color:#000;border:2px solid #c00}}
+  .user-name{font-size:26px;font-weight:800;margin-bottom:6px}
+  .coords{font-size:15px;opacity:0.9;word-break:break-all;margin:10px 0}
+  button{width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;font-size:19px;cursor:pointer;font-weight:bold}
+  .bigbtn{padding:34px;font-size:26px}
+  .sos{background:#b00;animation:pulse 2.5s infinite;box-shadow:0 0 20px #f00}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.8)}70%{box-shadow:0 0 0 35px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .helper{background:#000;padding:20px;margin:14px 0;border-radius:16px;line-height:1.6;box-shadow:0 3px 10px rgba(0,0,0,0.5)}
+  @media(prefers-color-scheme:light){.helper{background:#f9f9f9;color:#000;border:1px solid #ddd}}
   .hidden{display:none}
-  .contact-btn{margin-top:8px;padding:10px;font-size:14px;border-radius:8px;background:#333;display:inline-block}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0}
-  .switch{position:relative;display:inline-block;width:80px;height:42px}
+  .contact-btn{margin-top:10px;padding:11px 16px;font-size:15px;border-radius:10px;background:#333;display:inline-block}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:25px 0}
+  .switch{position:relative;display:inline-block;width:86px;height:46px}
   .switch input{opacity:0;width:0;height:0}
-  .slider{position:absolute;inset:0;background:#555;border-radius:34px;transition:.3s}
-  .slider:before{position:absolute;content:"";height:34px;width:34px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
-  input:checked + .slider{background:#0a0}
-  input:checked + .slider:before{transform:translateX(38px)}
-  .status{font-weight:bold}
+  .slider{position:absolute;inset:0;background:#555;border-radius:46px;transition:.4s}
+  .slider:before{position:absolute;content:"";height:38px;width:38px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.4s}
+  input:checked + .slider{background:#0f0}
+  input:checked + .slider:before{transform:translateX(40px)}
+  .status{font-size:18px;font-weight:bold}
+  label{display:block;margin:20px 0 8px;font-weight:600}
+  input,textarea{width:100%;padding:14px;border-radius:12px;border:none;background:#222;color:#fff;font-size:16px}
+  @media(prefers-color-scheme:light){input,textarea{background:#fff;color:#000;border:1px solid #ccc}}
 </style>
 </head>
 <body>
 <div id="app">
+  <button class="logout hidden" id="logoutBtn" onclick="logout()">Log out</button>
   <h1>RoadKin</h1>
 
+  <!-- LOGIN -->
   <div id="login" class="screen">
     <input type="text" id="username" placeholder="Your name or nickname">
     <button class="bigbtn" onclick="login()">Enter RoadKin</button>
   </div>
 
+  <!-- MAIN -->
   <div id="main" class="screen hidden">
     <div class="user-bar" onclick="openEdit()">
       <div class="user-name">Hi, <span id="displayName"></span></div>
@@ -52,17 +62,22 @@
     </div>
 
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-    <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
+    <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#444">Set location manually</button>
 
     <h2>Nearby Helpers (<span id="count">0</span>)</h2>
     <div id="helpers"></div>
   </div>
 
+  <!-- EDIT PROFILE -->
   <div id="edit" class="screen hidden">
-    <h2>What can you offer?</h2>
-    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room, welding…"></textarea>
-    <input type="text" id="contact" placeholder="WhatsApp, email, Signal (optional)">
-    <button class="bigbtn" onclick="saveAndBack()" style="background:#0b0;margin-top:20px">Save & Back</button>
+    <h2>Edit your help offer</h2>
+    <label>What can you offer?</label>
+    <textarea id="offer" rows="5" placeholder="garage, tools, cold beer, spare bed, welding, Spanish…"></textarea>
+    
+    <label>Contact (WhatsApp, email, Signal…)</label>
+    <input type="text" id="contact" placeholder="+123456789 or name@email.com">
+    
+    <button class="bigbtn" onclick="saveAndBack()" style="background:#0b0">Save & Back</button>
   </div>
 </div>
 
@@ -79,11 +94,19 @@ function loadUser() {
   return false; 
 }
 
+function logout() {
+  if(confirm("Log out and clear your data on this device?")) {
+    localStorage.removeItem('roadkin_user');
+    location.reload();
+  }
+}
+
 async function loadHelpers() {
   try {
     const r = await fetch(SHEET_CSV + '&t=' + Date.now());
     const text = await r.text();
     const lines = text.split('\n').slice(1).filter(l => l.trim());
+    
     helpers = lines.map(l => {
       const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
       if(c.length < 6) return null;
@@ -97,17 +120,20 @@ async function loadHelpers() {
       };
     }).filter(Boolean);
 
+    // Sync my current status from sheet (this stops the revert!)
     const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-    if(me) {
-      user.offer = me.offer || user.offer;
-      user.contact = me.contact || user.contact;
-      document.getElementById("offer").value = user.offer;
-      document.getElementById("contact").value = user.contact;
+    const toggle = document.getElementById("availToggle");
+    const status = document.getElementById("statusText");
+    
+    if(me && me.availableNow) {
+      toggle.checked = true;
+      status.textContent = "ONLINE";
+      status.style.color = "#0f0";
+    } else {
+      toggle.checked = false;
+      status.textContent = "Offline";
+      status.style.color = "#aaa";
     }
-
-    document.getElementById("availToggle").checked = !!me?.availableNow;
-    document.getElementById("statusText").textContent = me?.availableNow ? "ONLINE" : "Offline";
-    document.getElementById("statusText").style.color = me?.availableNow ? "#0f0" : "#aaa";
 
     renderHelpers();
   } catch(e) {
@@ -133,7 +159,7 @@ function renderHelpers() {
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
       else if(/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,'')))
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${h.contact.replace(/\D/g,'')}'">WhatsApp</button>`;
-      else
+      else if(h.contact)
         contactHTML = `<br>Contact: ${h.contact}`;
     }
     div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer || "Can help"}${contactHTML}`;
@@ -154,11 +180,13 @@ function updateCoords() {
 }
 
 function sendToSheet(available) {
-  if(!user.lat) { alert("Location required first"); return false; }
+  if(!user.lat) { alert("Need location first"); return; }
+  
   const offer = document.getElementById("offer").value.trim();
   const contact = document.getElementById("contact").value.trim();
-
+  
   user.offer = offer;
+  ""; // never lose it
   user.contact = contact;
   saveUser();
 
@@ -172,18 +200,11 @@ function sendToSheet(available) {
     '&usp=pp_url&submit=Submit';
 
   fetch(url, {method:'GET', mode:'no-cors'});
-  return true;
 }
 
 document.getElementById("availToggle").onchange = function() {
-  const state = this.checked;
-  if(sendToSheet(state)) {
-    document.getElementById("statusText").textContent = state ? "ONLINE" : "Offline";
-    document.getElementById("statusText").style.color = state ? "#0f0" : "#aaa";
-    setTimeout(loadHelpers, 8000);
-  } else {
-    this.checked = !state;
-  }
+  sendToSheet(this.checked);
+  setTimeout(loadHelpers, 8000); // Google needs time
 };
 
 function openEdit() {
@@ -206,10 +227,12 @@ function saveAndBack() {
 
 function login() {
   const n = document.getElementById("username").value.trim();
-  if(!n) return alert("Enter name");
-  user.name = n; saveUser();
+  if(!n) return alert("Enter your name");
+  user.name = n;
+  saveUser();
   document.getElementById("login").classList.add("hidden");
   document.getElementById("main").classList.remove("hidden");
+  document.getElementById("logoutBtn").classList.remove("hidden");
   document.getElementById("displayName").textContent = n;
   document.getElementById("offer").value = user.offer;
   document.getElementById("contact").value = user.contact;
@@ -219,41 +242,42 @@ function login() {
   navigator.geolocation?.getCurrentPosition(p => {
     user.lat = p.coords.latitude;
     user.lon = p.coords.longitude;
-    saveUser(); updateCoords();
+    saveUser();
+    updateCoords();
   });
 }
 
 function manualLocation() {
-  const i = prompt("City or lat,lon:");
+  const i = prompt("City name or coordinates (lat,lon):");
   if(!i) return;
   const p = i.split(/[,\s]+/).map(parseFloat);
-  if(p.length>=2 && !isNaN(p[0])) { user.lat=p[0]; user.lon=p[1]; }
-  else {
+  if(p.length >= 2 && !isNaN(p[0])) {
+    user.lat = p[0]; user.lon = p[1];
+    saveUser(); updateCoords();
+  } else {
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
-      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon;}});
+      .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon; saveUser(); updateCoords();}});
   }
-  saveUser(); updateCoords();
 }
 
 function sendSOS() {
-  if(!user.lat) return alert("Location needed");
-  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}`;
+  if(!user.lat) return alert("Location required");
+  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
   location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 
 function haversine(lat1,lon1,lat2,lon2) {
-  const toRad = x => x * Math.PI / 180;
-  const R = 6371;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const toRad=x=>x*Math.PI/180,R=6371;
+  const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 window.onload = () => {
   if(loadUser() && user.name) {
     document.getElementById("login").classList.add("hidden");
     document.getElementById("main").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
     document.getElementById("displayName").textContent = user.name;
     document.getElementById("offer").value = user.offer;
     document.getElementById("contact").value = user.contact;
