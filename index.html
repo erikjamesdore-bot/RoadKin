@@ -39,7 +39,7 @@
       <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to help</div>
     </div>
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-    <button class="bigbtn" onclick="manualLocation()" style="background:#333">Set location</button>
+    <button id="manualLocBtn" class="bigbtn" onclick="manualLocation()" style="background:#333">Set location manually</button>
     <h2>Nearby Helpers (<span id="count">0</span>)</h2>
     <div id="helpers"></div>
   </div>
@@ -47,7 +47,7 @@
   <div id="editMode" class="screen hidden">
     <h2>What can you offer?</h2>
     <textarea id="offer" rows="4" placeholder="garage, beer, tools…"></textarea>
-    <input type="text" id="contact" placeholder="WhatsApp / email">
+    <input type="text" id="contact" placeholder="WhatsApp / email (optional)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0">
       <div>Available now</div>
       <label class="switch"><input type="checkbox" id="availableNow" checked><span class="slider"></span></label>
@@ -96,13 +96,16 @@ function renderHelpers(){
     .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 99999}))
     .sort((a,b) => a.dist - b.dist);
   document.getElementById("count").textContent = nearby.length;
-  if(!nearby.length){ list.innerHTML = "<i>No one online yet – tap your name!</i>"; return; }
+  if(!nearby.length){ list.innerHTML = "<i>No one online – tap your name!</i>"; return; }
   nearby.forEach(h => {
     const div = document.createElement("div"); div.className = "helper";
     const dist = h.dist < 99999 ? Math.round(h.dist) + " km away" : "Far off-road";
     div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}`;
     list.appendChild(div);
   });
+
+  // Hide manual location button when we have GPS
+  document.getElementById("manualLocBtn").style.display = user.lat ? "none" : "block";
 }
 
 function login(){
@@ -144,14 +147,18 @@ function sendSOS(){
 function goLive(){
   if(!user.lat) return alert("Location required");
   const offer = document.getElementById("offer").value.trim() || "Can help";
+  const contact = document.getElementById("contact").value.trim();
   const available = document.getElementById("availableNow").checked ? "yes" : "no";
+
   const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
     'entry.2131123748=' + encodeURIComponent(user.name) +
     '&entry.1563978452=' + user.lat.toFixed(6) +
     '&entry.1612978471=' + user.lon.toFixed(6) +
     '&entry.1742973672=' + encodeURIComponent(offer) +
     '&entry.1366145812=' + available +
+    (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
     '&usp=pp_url&submit=Submit';
+
   fetch(url,{method:'GET',mode:'no-cors'});
   alert("You are LIVE! Thank you hero");
   toggleEditMode();
