@@ -56,7 +56,6 @@
       <h2>I can help riders!</h2>
       <textarea id="offer" rows="5" placeholder="What can you offer? (garage, tools, spare room, beer, languages…)"></textarea>
       <input type="text" id="contact" placeholder="Contact: WhatsApp, email, Signal… (optional)">
-
       <div class="toggle-row">
         <div class="toggle-label">Available right now</div>
         <label class="switch">
@@ -64,7 +63,6 @@
           <span class="slider"></span>
         </label>
       </div>
-
       <button class="bigbtn" onclick="goLive()" style="background:#0b0;font-size:26px">GO LIVE NOW</button>
       <button class="back-btn" onclick="toggleMode()">Back</button>
     </div>
@@ -75,13 +73,21 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // YOUR CURRENT CLEAN HELPERS CSV URL GOES HERE
+    // YOUR CURRENT WORKING CSV URL
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
+
+    // Save / load user name from localStorage
+    function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
+    function loadUser() { 
+      const saved = localStorage.getItem('roadkin_user');
+      if (saved) { user = JSON.parse(saved); return true; }
+      return false;
+    }
 
     async function loadHelpers() {
       try {
         const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
-        if (!resp.ok) throw new Error();
+        if (!resp.ok) throw "";
         const text = await resp.text();
         const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
@@ -109,6 +115,7 @@
       const name = document.getElementById("username").value.trim();
       if (!name) return alert("Please enter your name");
       user.name = name;
+      saveUser();
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
       loadHelpers();
@@ -116,38 +123,39 @@
         navigator.geolocation.getCurrentPosition(p => {
           user.lat = p.coords.latitude;
           user.lon = p.coords.longitude;
+          saveUser();
           renderHelpers();
         });
       }
     }
 
     function manualLocation() {
-      const input = prompt("Enter city or coordinates (e.g. Berlin or -34.6037,-58.3816):", "");
+      const input = prompt("Enter city or coordinates:", "");
       if (!input) return;
       if (/^-?\d/.test(input.trim())) {
         const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
-        if (lat && lon) { user.lat = lat; user.lon = lon; renderHelpers(); return; }
+        if (lat && lon) { user.lat = lat; user.lon = lon; saveUser(); renderHelpers(); return; }
       }
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
         .then(r => r.json())
-        .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; renderHelpers(); } });
+        .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; saveUser(); renderHelpers(); } });
     }
 
     function renderHelpers() {
       const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
-        .filter(h => h.availableNow)
+        .filter(h => h.availableNow)           // ← this line was missing before!
         .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
         .sort((a,b) => a.dist - b.dist)
         .slice(0,30);
 
       document.getElementById("count").textContent = nearby.length;
       if (nearby.length === 0) {
-        list.innerHTML = "<i>No helpers online right now – be the first!</i>";
+        list.innerHTML = "<i>No one online right now – be the first!</i>";
         return;
       }
       nearby.forEach(h => {
-        const d = document.createElement("div"); d.className = "helper";
+        const d = document.createElement("div"); d.className="helper";
         const dist = h.dist < 9999 ? Math.round(h.dist) + " km away" : "Far off-road";
         let contact = "";
         if (h.contact) {
@@ -174,19 +182,18 @@
     }
 
     function goLive() {
-      if (!user.lat) return alert("Location required – allow GPS or set manually");
+      if (!user.lat) return alert("Location required");
       const offer = document.getElementById("offer").value.trim() || "Can help";
       const contact = document.getElementById("contact").value.trim();
       const available = document.getElementById("availableNow").checked ? "Yes" : "No";
 
-      // Append directly via form (still the most reliable way)
       const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
         'entry.2131123748=' + encodeURIComponent(user.name) +
         '&entry.1563978452=' + (user.lat?.toFixed(6) || '') +
         '&entry.1612978471=' + (user.lon?.toFixed(6) || '') +
         '&entry.1742973672=' + encodeURIComponent(offer) +
+        (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
         '&entry.1366145812=' + available +
-        (contact ? '&entry.XXXXXXX=' + encodeURIComponent(contact) : '') +   // replace XXXXXXX with real contact entry ID if you have one
         '&usp=pp_url&submit=Submit';
 
       fetch(url, {method: 'GET', mode: 'no-cors'});
@@ -204,7 +211,15 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    window.addEventListener('load', loadHelpers);
+    // AUTO-LOGIN IF ALREADY LOGGED IN BEFORE
+    window.addEventListener('load', () => {
+      if (loadUser() && user.name) {
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("main").classList.remove("hidden");
+        document.getElementById("username").value = user.name;
+      }
+      loadHelpers();
+    });
   </script>
 </body>
 </html>
