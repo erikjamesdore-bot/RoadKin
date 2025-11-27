@@ -11,17 +11,27 @@
     body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
     @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
-    h1{text-align:center;color:#c00}
-    input,textarea,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:none;font-size:16px;box-sizing:border-box}
+    h1{text-align:center;color:#c00;margin-bottom:30px}
+    input,textarea,button{width:100%;padding:14px;margin:10px 0;border-radius:12px;border:none;font-size:16px;box-sizing:border-box}
     button{background:#c00;color:white;cursor:pointer;font-weight:bold}
-    button.bigbtn{padding:30px;font-size:24px;margin:30px 0;border-radius:12px}
+    button:hover{opacity:0.9}
+    button.bigbtn{padding:30px;font-size:24px;margin:25px 0;border-radius:16px}
     .sos{background:#b00;animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
-    .helper{background:#222;padding:15px;margin:10px 0;border-radius:10px}
-    @media(prefers-color-scheme:light){.helper{background:#f0f0f0f0}}
+    .helper{background:#222;padding:18px;margin:12px 0;border-radius:14px;line-height:1.5}
+    @media(prefers-color-scheme:light){.helper{background:#f8f8f8;color:#000}}
     .hidden{display:none}
-    .contact-btn{margin:4px 0;padding:10px;font-size:14px;width:auto;display:inline-block}
-    .small-btn{font-size:14px;padding:10px}
+    .contact-btn{margin:6px 0;padding:10px;font-size:14px;width:auto;display:inline-block;background:#333}
+    @media(prefers-color-scheme:light){.contact-btn{background:#ddd;color:#000}}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:20px 0;padding:10px 0}
+    .toggle-label{font-size:18px;font-weight:500}
+    .switch{position:relative;display:inline-block;width:70px;height:38px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:34px;transition:.3s}
+    .slider:before{position:absolute;content:"";height:30px;width:30px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s}
+    input:checked + .slider{background:#0a0}
+    input:checked + .slider:before{transform:translateX(32px)}
+    .back-btn{background:#555;margin-top:30px}
   </style>
 </head>
 <body>
@@ -30,32 +40,34 @@
 
     <div id="login" class="screen">
       <input type="text" id="username" placeholder="Your name or nickname" required>
-      <button onclick="login()">Enter RoadKin</button>
+      <button class="bigbtn" onclick="login()">Enter RoadKin</button>
     </div>
 
     <div id="main" class="screen hidden">
-      <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (works offline)</button>
+      <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-      <button onclick="toggleMode()">Become a Helper</button>
-      <button class="small-btn" onclick="manualLocation()">Set location manually</button>
-      <h2>Nearby Helpers (<span id="count">0</span>)</h2>
+      <button class="bigbtn" onclick="toggleMode()" style="background:#0a0">Become a Helper</button>
+      <button class="small-btn" onclick="manualLocation()" style="font-size:15px;padding:12px">Set location manually</button>
+      <h2 style="margin-top:30px">Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
 
     <div id="helperMode" class="screen hidden">
       <h2>I can help riders!</h2>
-      <textarea id="offer" rows="4" placeholder="What can you offer? (garage, tools, spare room, beer, languages…)"></textarea>
-      <input type="text" id="contact" placeholder="Contact (WhatsApp, email, Signal…)" style="margin-top:12px">
-      <label style="margin-top:12px;display:block">
-        <input type="checkbox" id="availableNow" checked> Available right now
-      </label>
-      <button class="bigbtn" onclick="goLive()" style="margin-top:20px;background:#0a0">GO LIVE NOW</button>
-      <button onclick="toggleMode()">Cancel</button>
-    </div>
+      <textarea id="offer" rows="5" placeholder="What can you offer? (garage, tools, spare room, beer, languages…)"></textarea>
+      <input type="text" id="contact" placeholder="Contact: WhatsApp, email, Signal… (optional)">
 
-    <footer style="text-align:center;margin-top:50px;font-size:14px;opacity:0.7">
-      Built for the road • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
-    </footer>
+      <div class="toggle-row">
+        <div class="toggle-label">Available right now</div>
+        <label class="switch">
+          <input type="checkbox" id="availableNow" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <button class="bigbtn" onclick="goLive()" style="background:#0b0;font-size:26px">GO LIVE NOW</button>
+      <button class="back-btn" onclick="toggleMode()">Back</button>
+    </div>
   </div>
 
   <script>
@@ -63,13 +75,13 @@
     let deferredPrompt = null;
     let helpers = [];
 
-// PASTE YOUR NEW CLEAN CSV URL HERE (the one from your fresh Helpers tab)
-    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=1578348969&single=true&output=csv';
+    // YOUR CURRENT CLEAN HELPERS CSV URL GOES HERE
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
       try {
         const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
-        if (!resp.ok) throw "";
+        if (!resp.ok) throw new Error();
         const text = await resp.text();
         const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
@@ -86,12 +98,12 @@
         }).filter(Boolean);
         renderHelpers();
       } catch(e) {
-        document.getElementById("helpers").innerHTML = "<i>No signal – showing last known helpers</i>";
+        document.getElementById("helpers").innerHTML = "<i>No internet – showing last known helpers</i>";
       }
     }
 
-    window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block'});
-    async function installApp(){if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;}}
+    window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block';});
+    function installApp(){deferredPrompt?.prompt();}
 
     function login() {
       const name = document.getElementById("username").value.trim();
@@ -100,43 +112,43 @@
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
       loadHelpers();
-
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
           user.lat = p.coords.latitude;
           user.lon = p.coords.longitude;
           renderHelpers();
-        }, () => console.log("GPS denied"));
+        });
       }
     }
 
     function manualLocation() {
-      const input = prompt("City / place / coordinates (or coordinates):", "Berlin");
+      const input = prompt("Enter city or coordinates (e.g. Berlin or -34.6037,-58.3816):", "");
       if (!input) return;
-      if (/^-?\d/.test(input)) {
+      if (/^-?\d/.test(input.trim())) {
         const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
-        user.lat = lat; user.lon = lon;
-      } else {
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
-          .then(r => r.json())
-          .then(d => {
-            if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; renderHelpers(); }
-          });
+        if (lat && lon) { user.lat = lat; user.lon = lon; renderHelpers(); return; }
       }
-      renderHelpers();
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+        .then(r => r.json())
+        .then(d => { if (d[0]) { user.lat = +d[0].lat; user.lon = +d[0].lon; renderHelpers(); } });
     }
 
     function renderHelpers() {
       const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
+        .filter(h => h.availableNow)
         .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
         .sort((a,b) => a.dist - b.dist)
         .slice(0,30);
 
       document.getElementById("count").textContent = nearby.length;
+      if (nearby.length === 0) {
+        list.innerHTML = "<i>No helpers online right now – be the first!</i>";
+        return;
+      }
       nearby.forEach(h => {
-        const d = document.createElement("div"); d.className="helper";
-        const dist = h.dist < 9999 ? Math.round(h.dist)+" km" : "Far off-road";
+        const d = document.createElement("div"); d.className = "helper";
+        const dist = h.dist < 9999 ? Math.round(h.dist) + " km away" : "Far off-road";
         let contact = "";
         if (h.contact) {
           if (h.contact.includes('@')) contact = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
@@ -151,7 +163,7 @@
     }
 
     function sendSOS() {
-      if (!user.lat) return alert("Set your location first");
+      if (!user.lat) return alert("Location needed – allow GPS or set manually");
       const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     }
@@ -159,45 +171,28 @@
     function toggleMode() {
       document.getElementById("main").classList.toggle("hidden");
       document.getElementById("helperMode").classList.toggle("hidden");
-      if (!document.getElementById("helperMode").classList.contains("hidden")) {
-        document.getElementById("offer").focus();
-      }
     }
 
-    // THIS IS THE NEW MAGIC BUTTON
-    async function goLive() {
-      if (!user.name) return alert("Name missing");
-      if (!user.lat) return alert("Location missing – use GPS or manual");
-
+    function goLive() {
+      if (!user.lat) return alert("Location required – allow GPS or set manually");
       const offer = document.getElementById("offer").value.trim() || "Can help";
       const contact = document.getElementById("contact").value.trim();
       const available = document.getElementById("availableNow").checked ? "Yes" : "No";
 
-      const row = [
-        user.name,
-        user.lat.toFixed(6),
-        user.lon.toFixed(6),
-        `"${offer}"`,          // wrapped in quotes so commas never break anything
-        contact,
-        available
-      ].join(',');
-
-      // Append directly to your Google Sheet using the pre-publish trick (no form needed)
-      const appendUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
+      // Append directly via form (still the most reliable way)
+      const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
         'entry.2131123748=' + encodeURIComponent(user.name) +
-        '&entry.1563978452=' + user.lat.toFixed(6) +
-        '&entry.1612978471=' + user.lon.toFixed(6) +
+        '&entry.1563978452=' + (user.lat?.toFixed(6) || '') +
+        '&entry.1612978471=' + (user.lon?.toFixed(6) || '') +
         '&entry.1742973672=' + encodeURIComponent(offer) +
         '&entry.1366145812=' + available +
-        (contact ? '&entry.YOUR_CONTACT_ENTRY_ID=' + encodeURIComponent(contact) : '') +
+        (contact ? '&entry.XXXXXXX=' + encodeURIComponent(contact) : '') +   // replace XXXXXXX with real contact entry ID if you have one
         '&usp=pp_url&submit=Submit';
 
-      // Fire and forget – no new tab needed
-      fetch(appendUrl, {method: 'POST', mode: 'no-cors'});
-      
-      alert("You are now LIVE worldwide! Thank you ❤️");
+      fetch(url, {method: 'GET', mode: 'no-cors'});
+      alert("You are now LIVE worldwide! Thank you hero");
       toggleMode();
-      setTimeout(loadHelpers, 3000);  // refresh list in 3 sec
+      setTimeout(loadHelpers, 4000);
     }
 
     function haversine(lat1,lon1,lat2,lon2) {
@@ -209,7 +204,6 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // load on start
     window.addEventListener('load', loadHelpers);
   </script>
 </body>
