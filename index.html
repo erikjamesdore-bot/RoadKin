@@ -69,28 +69,49 @@
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
-      try {
-        const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
-        if (!resp.ok) throw new Error();
-        const text = await resp.text();
-        const rows = text.split('\n').slice(1).filter(r => r.trim());
-        helpers = rows.map(row => {
-          const c = row.split(',').map(field => {
-  return field.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-         });
-            name: c[0],
-            lat: parseFloat(c[1]) || 0,
-            lon: parseFloat(c[2]) || 0,
-            offer: c[3] || "Can help",
-            contact: c[4] || "",
-            availableNow: c[5].toLowerCase() === "yes"
-          };
-        }).filter(Boolean);
-        renderHelpers();
-      } catch(e) {
-        alert("No signal – using last known helpers");
+  try {
+    const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
+    if (!resp.ok) throw new Error();
+    const text = await resp.text();
+    const rows = text.split('\n').slice(1).filter(r => r.trim());
+
+    helpers = rows.map(row => {
+      // Properly handle fields with commas inside quotes
+      const fields = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let char of row + ',') {               // add trailing comma to flush last field
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          fields.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
       }
-    }
+
+      // Clean up quotes
+      const c = fields.map(f => f.replace(/^"|"$/g, '').replace(/""/g, '"'));
+
+      if (c.length < 6 || !c[0]) return null;
+
+      return {
+        name: c[0],
+        lat: parseFloat(c[1]) || 0,
+        lon: parseFloat(c[2]) || 0,
+        offer: c[3] || "Can help",
+        contact: c[4] || "",
+        availableNow: c[5].toLowerCase() === "yes"
+      };
+    }).filter(Boolean);
+
+    renderHelpers();
+  } catch (e) {
+    alert("No signal – using last known helpers");
+  }
+}
 
     window.addEventListener('beforeinstallprompt', e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install').style.display='block'});
     async function installApp(){if(deferredPrompt){deferredPrompt.prompt();const o=await deferredPrompt.userChoice;if(o.outcome==='accepted')deferredPrompt=null;}}
