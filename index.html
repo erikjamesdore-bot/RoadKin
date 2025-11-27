@@ -25,6 +25,7 @@
     footer{text-align:center;margin-top:40px;font-size:14px;opacity:0.7}
     .kofi{color:#c00;font-weight:bold}
     .contact-btn{margin:4px 0;padding:10px;font-size:14px;width:auto;display:inline-block}
+    .small-btn{font-size:14px;padding:10px;margin:5px 0}
   </style>
 </head>
 <body>
@@ -41,6 +42,7 @@
       <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (works offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
       <button onclick="toggleMode()">Switch to Helper Mode</button>
+      <button class="small-btn" onclick="manualLocation()">Set location manually (no GPS)</button>
       <h2>Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
@@ -55,17 +57,15 @@
 
     <footer>
       Built for the road less traveled • <a href="https://roadkin.app" style="color:#c00">roadkin.app</a>
-      <br><br>
-      Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
+      <br><br>Love RoadKin? <a href="https://ko-fi.com/roadkin" class="kofi" target="_blank">Buy me a beer</a>
     </footer>
   </div>
 
   <script>
-    let user = null;
+    let user = { name: "", lat: null, lon: null };
     let deferredPrompt = null;
     let helpers = [];
 
-    // CLEAN HELPERS TAB – correct column order (Name, Lat, Lon, Offer, Contact, Available Now)
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
     async function loadHelpers() {
@@ -76,8 +76,7 @@
         const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
           const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
-          if (c.length < 6) return null;
-          if (!c[0]) return null;                    // skip if no name
+          if (c.length < 6 || !c[0]) return null;
           return {
             name: c[0],
             lat: parseFloat(c[1]) || 0,
@@ -99,22 +98,64 @@
     function login() {
       const name = document.getElementById("username").value.trim();
       if (!name) return alert("Enter your name");
-      user = {name, lat:null, lon:null};
+      user.name = name;
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
       loadHelpers();
-      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p=>{user.lat=p.coords.latitude;user.lon=p.coords.longitude;renderHelpers();});
+
+      // Try GPS first (non-blocking)
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          user.lat = pos.coords.latitude;
+          user.lon = pos.coords.longitude;
+          renderHelpers();
+        }, () => {
+          alert("GPS denied or unavailable – tap “Set location manually” anytime");
+        });
+      }
+    }
+
+    function manualLocation() {
+      const input = prompt("Enter a city, address, or coordinates (e.g. Paris or 48.8566,2.3522):", "");
+      if (!input) return;
+
+      // If it looks like coordinates
+      if (/^-?\d+\.?\d*[, ]\s*-?\d+\.?\d*$/.test(input)) {
+        const [lat, lon] = input.split(/[,\s]+/).map(parseFloat);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          user.lat = lat;
+          user.lon = lon;
+          renderHelpers();
+          alert(`Location set to ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+          return;
+        }
+      }
+
+      // Otherwise use Nominatim (OpenStreetMap) to geocode
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data[0]) {
+            user.lat = parseFloat(data[0].lat);
+            user.lon = parseFloat(data[0].lon);
+            renderHelpers();
+            alert(`Location set to ${data[0].display_name.split(',')[0]}`);
+          } else {
+            alert("Location not found – try coordinates instead");
+          }
+        });
     }
 
     function renderHelpers() {
       const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
-        .map(h=>({...h, dist:user?.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 999}))
-        .sort((a,b)=>a.dist-b.dist).slice(0,20);
+        .map(h => ({...h, dist: user.lat ? haversine(user.lat, user.lon, h.lat, h.lon) : 999}))
+        .sort((a,b) => a.dist - b.dist)
+        .slice(0, 20);
       document.getElementById("count").textContent = nearby.length;
-      nearby.forEach(h=>{
-        const d=document.createElement("div"); d.className="helper";
-        const distText = h.dist < 999 ? Math.round(h.dist)+" km away" : "Far off-road";
+      nearby.forEach(h => {
+        const d = document.createElement("div"); d.className = "helper";
+        const distText = h.dist < 999 ? Math.round(h.dist) + " km away" : "Far off-road";
         let contactHTML = "";
         if (h.contact) {
           if (h.contact.includes('@')) {
@@ -132,8 +173,8 @@
     }
 
     function sendSOS() {
-      if (!user?.lat) return alert("Waiting for GPS…");
-      const msg=`ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\nDetails: (add your problem here)\n#RoadKin`;
+      if (!user.lat) return alert("Set your location first (GPS or manual)");
+      const msg = `ROADKIN SOS\n${user.name} needs urgent help!\nLocation: https://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
       alert("SOS ready – share it!");
     }
@@ -158,15 +199,15 @@
         '&entry.1366145812=' + available;
 
       window.open(url, '_blank');
-      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live worldwide.");
+      alert("Form opened – everything pre-filled!\nJust tap SUBMIT and you’re live.");
     }
 
     function haversine(lat1,lon1,lat2,lon2){
-      const toRad=x=>x*Math.PI/180;
-      const R=6371;
-      const dLat=toRad(lat2-lat1);
-      const dLon=toRad(lon2-lon1);
-      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      const toRad = x => x*Math.PI/180;
+      const R = 6371;
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
   </script>
