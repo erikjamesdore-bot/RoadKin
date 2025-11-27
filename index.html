@@ -11,10 +11,10 @@
     body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
     @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
     #app{max-width:480px;margin:40px auto;padding:20px}
-    h1{text-align:center;color:#c00;margin-bottom:30px}
+    h1{text-align:center;color:#c00;margin:15px 0}
+    .user-greeting{text-align:center;font-size:20px;margin:20px 0 30px;font-weight:600;opacity:0.9}
     input,textarea,button{width:100%;padding:14px;margin:10px 0;border-radius:12px;border:none;font-size:16px;box-sizing:border-box}
     button{background:#c00;color:white;cursor:pointer;font-weight:bold}
-    button:hover{opacity:0.9}
     button.bigbtn{padding:30px;font-size:24px;margin:25px 0;border-radius:16px}
     .sos{background:#b00;animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 30px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
@@ -32,6 +32,7 @@
     input:checked + .slider{background:#0a0}
     input:checked + .slider:before{transform:translateX(32px)}
     .back-btn{background:#555;margin-top:30px}
+    .logout-btn{background:#333;font-size:14px;padding:10px;margin-top:20px}
   </style>
 </head>
 <body>
@@ -44,10 +45,12 @@
     </div>
 
     <div id="main" class="screen hidden">
+      <div class="user-greeting">Hi, <span id="displayName"></span> 👋</div>
       <button id="install" class="bigbtn" onclick="installApp()" style="display:none">Install RoadKin (offline)</button>
       <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
       <button class="bigbtn" onclick="toggleMode()" style="background:#0a0">Become a Helper</button>
       <button class="small-btn" onclick="manualLocation()" style="font-size:15px;padding:12px">Set location manually</button>
+      <button class="logout-btn" onclick="logout()">Log out</button>
       <h2 style="margin-top:30px">Nearby Helpers (<span id="count">0</span>)</h2>
       <div id="helpers"></div>
     </div>
@@ -73,10 +76,8 @@
     let deferredPrompt = null;
     let helpers = [];
 
-    // YOUR CURRENT WORKING CSV URL
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
-    // Save / load user name from localStorage
     function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
     function loadUser() { 
       const saved = localStorage.getItem('roadkin_user');
@@ -116,16 +117,28 @@
       if (!name) return alert("Please enter your name");
       user.name = name;
       saveUser();
+      showMainScreen();
+    }
+
+    function showMainScreen() {
       document.getElementById("login").classList.add("hidden");
       document.getElementById("main").classList.remove("hidden");
+      document.getElementById("displayName").textContent = user.name;
       loadHelpers();
-      if (navigator.geolocation) {
+      if (!user.lat && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(p => {
           user.lat = p.coords.latitude;
           user.lon = p.coords.longitude;
           saveUser();
           renderHelpers();
         });
+      }
+    }
+
+    function logout() {
+      if (confirm("Log out?")) {
+        localStorage.removeItem('roadkin_user');
+        location.reload();
       }
     }
 
@@ -144,7 +157,7 @@
     function renderHelpers() {
       const list = document.getElementById("helpers"); list.innerHTML = "";
       const nearby = helpers
-        .filter(h => h.availableNow)           // ← this line was missing before!
+        .filter(h => h.availableNow)
         .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 9999}))
         .sort((a,b) => a.dist - b.dist)
         .slice(0,30);
@@ -171,7 +184,7 @@
     }
 
     function sendSOS() {
-      if (!user.lat) return alert("Location needed – allow GPS or set manually");
+      if (!user.lat) return alert("Location needed");
       const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
       location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     }
@@ -192,8 +205,8 @@
         '&entry.1563978452=' + (user.lat?.toFixed(6) || '') +
         '&entry.1612978471=' + (user.lon?.toFixed(6) || '') +
         '&entry.1742973672=' + encodeURIComponent(offer) +
-        (contact ? '&entry.1366145812=' + encodeURIComponent(contact) : '') +
         '&entry.1366145812=' + available +
+        (contact ? '&entry.XXXXXXX=' + encodeURIComponent(contact) : '') +
         '&usp=pp_url&submit=Submit';
 
       fetch(url, {method: 'GET', mode: 'no-cors'});
@@ -211,12 +224,10 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // AUTO-LOGIN IF ALREADY LOGGED IN BEFORE
+    // AUTO-LOGIN + SHOW NAME
     window.addEventListener('load', () => {
       if (loadUser() && user.name) {
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("main").classList.remove("hidden");
-        document.getElementById("username").value = user.name;
+        showMainScreen();
       }
       loadHelpers();
     });
