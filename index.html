@@ -75,9 +75,9 @@
         const text = await resp.text();
         const rows = text.split('\n').slice(1).filter(r => r.trim());
         helpers = rows.map(row => {
-          const c = row.split(',').map(s => s.replace(/^"|"$/g,'').trim());
-          if (c.length < 6 || !c[0]) return null;
-          return {
+          const c = row.split(',').map(field => {
+  return field.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+         });
             name: c[0],
             lat: parseFloat(c[1]) || 0,
             lon: parseFloat(c[2]) || 0,
