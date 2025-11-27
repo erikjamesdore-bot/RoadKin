@@ -5,112 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RoadKin</title>
 <style>
-  body{font-family:system-ui,-apple-system,sans-serif;background:#0d00;color:#fff;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
   @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
-  #app{max-width:480px;margin:30px auto;padding:20px;position:relative}
-  h1{text-align:center;color:#fff;margin:0 0 30px;font-size:28px}
-  @media(prefers-color-scheme:light){h1{color:#c00}}
-  .logout{position:absolute;top:10px;right:10px;background:#900;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:14px;cursor:pointer}
-  .user-bar{background:#000;padding:22px;border-radius:20px;margin-bottom:25px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.5)}
-  @media(prefers-color-scheme:light){.user-bar{background:#fff;color:#000;border:2px solid #c00}}
-  .user-name{font-size:26px;font-weight:800;margin-bottom:8px}
-  .coords{font-size:15px;opacity:0.9;word-break:break-all;margin:10px 0}
-  button{width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;font-size:19px;cursor:pointer;font-weight:bold}
+  #app{max-width:480px;margin:40px auto;padding:20px}
+  h1{text-align:center;color:#c00}
+  .user-bar{background:#222;padding:18px;border-radius:16px;margin-bottom:25px;text-align:center;cursor:pointer}
+  .user-name{font-size:24px;font-weight:700}
+  button{width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;font-size:19px;cursor:pointer}
   .bigbtn{padding:34px;font-size:26px}
-  .sos{background:#b00;animation:pulse 2.5s infinite;box-shadow:0 0 25px #f00}
+  .sos{background:#b00;animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.8)}70%{box-shadow:0 0 0 40px transparent}100%{box-shadow:0 0 0 0 transparent}}
-  .helper{background:#000;padding:22px;margin:16px 0;border-radius:18px;line-height:1.7;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
-  @media(prefers-color-scheme:light){.helper{background:#f9f9f9;color:#000;border:1px solid #ddd}}
+  .helper{background:#222;padding:20px;margin:14px 0;border-radius:16px;line-height:1.6}
   .hidden{display:none}
-  .contact-btn{margin-top:10px;padding:11px 18px;font-size:15px;border-radius:10px;background:#333;display:inline-block}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin:25px 0}
-  .switch{position:relative;display:inline-block;width:90px;height:48px}
-  .switch input{opacity:0;width:0;height:0}
-  .slider{position:absolute;inset:0;background:#555;border-radius:48px;transition:.4s}
-  .slider:before{position:absolute;content:"";height:40px;width:40px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.4s}
-  input:checked + .slider{background:#0f0}
-  input:checked + .slider:before{transform:translateX(42px)}
-  .status{font-size:19px;font-weight:bold}
-  label{display:block;margin:20px 0 8px;font-weight:600;font-size:16px;color:#fff}
-  @media(prefers-color-scheme:light){label{color:#000}}
-  input,textarea{width:100%;padding:16px;border-radius:14px;border:none;background:#222;color:#fff;font-size:17px;box-sizing:border-box}
-  @media(prefers-color-scheme:light){input,textarea{background:#fff;color:#000;border:1px solid #ccc}}
-  h2{margin-top:0;font-size:24px}
+  .contact-btn{margin-top:8px;padding:10px 16px;font-size:14px;border-radius:8px;background:#333;display:inline-block}
+  label{display:block;margin:20px 0 8px;font-weight:600}
+  input,textarea{width:100%;padding:16px;border-radius:12px;border:none;background:#333;color:#fff;font-size:17px}
 </style>
 </head>
 <body>
 <div id="app">
-  <button class="logout hidden" id="logoutBtn" onclick="logout()">Log out</button>
   <h1>RoadKin</h1>
 
-  <!-- LOGIN -->
   <div id="login" class="screen">
     <input type="text" id="username" placeholder="Your name or nickname">
-    <button class="bigbtn" onclick="login()">Enter RoadKin</button>
+    <button class="bigbtn" onclick="login()">Enter</button>
   </div>
 
-  <!-- MAIN -->
   <div id="main" class="screen hidden">
     <div class="user-bar" onclick="openEdit()">
-      <div class="user-name">Hi, <span id="displayName"></span></div>
-      <div class="coords" id="coordsDisplay">Getting location…</div>
-      <div class="toggle-row">
-        <div><span class="status" id="statusText" style="color:#aaa">Offline</span></div>
-        <label class="switch">
-          <input type="checkbox" id="availToggle">
-          <span class="slider"></span>
-        </label>
-      </div>
+      <div class="user-name">Hi, <span id="displayName"></span> ↓ tap to edit</div>
+      <div style="font-size:14px;margin-top:8px;opacity:0.9" id="coordsDisplay">Getting location…</div>
     </div>
 
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
     <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#444">Set location manually</button>
 
-    <h2>Nearby Helpers: <span id="count">0</span></h2>
+    <h2>Nearby Helpers (<span id="count">0</span>)</h2>
     <div id="helpers"></div>
   </div>
 
-  <!-- EDIT PROFILE -->
   <div id="edit" class="screen hidden">
-    <h2>Edit your help offer</h2>
-    
-    <label for="offer">What can you offer?</label>
-    <textarea id="offer" rows="5" placeholder="garage, tools, cold beer, spare bed, welding, Spanish…"></textarea>
-    
-    <label for="contact">Contact (WhatsApp, email, Signal…)</label>
+    <h2>What can you offer?</h2>
+    <label>Offer</label>
+    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room…"></textarea>
+
+    <label>Contact (WhatsApp / email)</label>
     <input type="text" id="contact" placeholder="+1234567890 or name@email.com">
-    
-    <button class="bigbtn" onclick="saveAndBack()" style="background:#0b0">Save & Back</button>
+
+    <button class="bigbtn" onclick="goLive()" style="background:#0b0">GO LIVE NOW</button>
+    <button class="bigbtn" onclick="openEdit()" style="background:#900">Cancel</button>
   </div>
 </div>
 
 <script>
 let user = { name: "", lat: null, lon: null, offer: "", contact: "" };
 let helpers = [];
-let lastSentState = null;  // This is the real fix!
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
-function saveUser() { localStorage.setItem('roadkin_user', JSON.stringify(user)); }
-function loadUser() { 
-  const s = localStorage.getItem('roadkin_user'); 
-  if(s) { user = JSON.parse(s); return true; } 
-  return false; 
-}
+function saveUser(){ localStorage.setItem('roadkin_user', JSON.stringify(user)); }
+function loadUser(){ const s=localStorage.getItem('roadkin_user'); if(s){user=JSON.parse(s); return true} return false; }
 
-function logout() {
-  if(confirm("Log out and clear your data?")) {
-    localStorage.removeItem('roadkin_user');
-    location.reload();
-  }
-}
-
-async function loadHelpers() {
-  try {
+async function loadHelpers(){
+  try{
     const r = await fetch(SHEET_CSV + '&t=' + Date.now());
     const text = await r.text();
-    const lines = text.split('\n').slice(1).filter(l => l.trim());
-    
+    const lines = text.split('\n').slice(1)).filter(l => l.trim());
     helpers = lines.map(l => {
       const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
       if(c.length < 6) return null;
@@ -118,45 +78,33 @@ async function loadHelpers() {
         name: c[0],
         lat: parseFloat(c[1]),
         lon: parseFloat(c[2]),
-        offer: c[3] || "",
+        offer: c[3] || "Can help",
         contact: c[4] || "",
         availableNow: c[5].toLowerCase() === "yes"
       };
     }).filter(Boolean);
-
-    const me = helpers.find(h => h.name.toLowerCase() === user.name.toLowerCase());
-    
-    // ONLY update toggle if sheet says something different than what we last sent
-    const sheetState = !!me?.availableNow;
-    if(lastSentState !== null && sheetState !== lastSentState) {
-      // Google has processed our submission — trust the sheet
-      document.getElementById("availToggle").checked = sheetState;
-      document.getElementById("statusText").textContent = sheetState ? "ONLINE" : "Offline";
-      document.getElementById("statusText").style.color = sheetState ? "#0f0" : "#aaa";
-    }
-
     renderHelpers();
-  } catch(e) {
+  }catch(e){
     document.getElementById("helpers").innerHTML = "<i>No internet</i>";
   }
 }
 
-function renderHelpers() {
+function renderHelpers(){
   const list = document.getElementById("helpers"); list.innerHTML = "";
-  const nearby = helpers.filter(h => h.availableNow);
-  
+  const nearby = helpers.filter(h => h.availableNow)
+    .map(h => ({...h, dist: user.lat ? haversine(user.lat,user.lon,h.lat,h.lon) : 99999}))
+    .sort((a,b) => a.dist - b.dist);
+
   document.getElementById("count").textContent = nearby.length;
-  
-  if(nearby.length === 0) { 
-    list.innerHTML = "<i>No one online – be the first!</i>"; 
-    return; 
-  }
+
+  if(nearby.length===0){ list.innerHTML = "<i>No one online yet – be the first!</i>"; return; }
 
   nearby.forEach(h => {
     const div = document.createElement("div"); div.className="helper";
-    const dist = user.lat ? Math.round(haversine(user.lat,user.lon,h.lat,h.lon)) + " km away" : "Far off-road";
+    const dist = h.dist < 99999 ? Math.round(h.dist) + " km away" : "Far off-road";
+
     let contactHTML = "";
-    if(h.contact) {
+    if(h.contact){
       if(h.contact.includes('@'))
         contactHTML = `<br>Contact: ${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
       else if(/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,'')))
@@ -164,15 +112,16 @@ function renderHelpers() {
       else
         contactHTML = `<br>Contact: ${h.contact}`;
     }
-    div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer || "Can help"}${contactHTML}`;
+
+    div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contactHTML}`;
     list.appendChild(div);
   });
 }
 
-function updateCoords() {
+function updateCoords(){
   const el = document.getElementById("coordsDisplay");
   const btn = document.getElementById("manualBtn");
-  if(user.lat) {
+  if(user.lat){
     el.textContent = `${user.lat.toFixed(5)}, ${user.lon.toFixed(5)}`;
     btn.style.display = "none";
   } else {
@@ -181,17 +130,14 @@ function updateCoords() {
   }
 }
 
-function sendToSheet(available) {
-  if(!user.lat) { alert("Need location first"); return; }
-  
-  const offer = document.getElementById("offer").value.trim();
+function goLive(){
+  if(!user.lat) return alert("Location required");
+  const offer = document.getElementById("offer").value.trim() || "Can help";
   const contact = document.getElementById("contact").value.trim();
-  
+
   user.offer = offer;
   user.contact = contact;
   saveUser();
-
-  lastSentState = available;  // Remember what we just told Google
 
   const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
     'entry.2131123748=' + encodeURIComponent(user.name) +
@@ -199,44 +145,24 @@ function sendToSheet(available) {
     '&entry.1612978471=' + user.lon.toFixed(6) +
     '&entry.1742973672=' + encodeURIComponent(offer) +
     '&entry.1092196062=' + encodeURIComponent(contact) +
-    '&entry.1366145812=' + (available ? 'yes' : 'no') +
+    '&entry.1366145812=yes' +
     '&usp=pp_url&submit=Submit';
 
-  fetch(url, {method:'GET', mode:'no-cors'});
+  fetch(url,{method:'GET',mode:'no-cors'});
+  alert("You are LIVE! Thank you hero");
+  openEdit(); // back to main screen
+  setTimeout(loadHelpers,6000);
 }
 
-document.getElementById("availToggle").onchange = function() {
-  sendToSheet(this.checked);
-  setTimeout(loadHelpers, 8000);
-};
-
-function openEdit() {
-  document.getElementById("main").classList.toggle("hidden");
-  document.getElementById("edit").classList.toggle("hidden");
-  document.getElementById("offer").value = user.offer;
-  document.getElementById("contact").value = user.contact;
-}
-
-function saveAndBack() {
-  user.offer = document.getElementById("offer").value.trim();
-  user.contact = document.getElementById("contact").value.trim();
-  saveUser();
-  openEdit();
-  if(document.getElementById("availToggle").checked) {
-    sendToSheet(true);
-    setTimeout(loadHelpers, 8000);
-  }
-}
-
-function login() {
+function login(){
   const n = document.getElementById("username").value.trim();
-  if(!n) return alert("Enter your name");
-  user.name = n;
-  saveUser();
+  if(!n) return alert("Name required");
+  user.name = n; saveUser();
   document.getElementById("login").classList.add("hidden");
   document.getElementById("main").classList.remove("hidden");
-  document.getElementById("logoutBtn").classList.remove("hidden");
   document.getElementById("displayName").textContent = n;
+  document.getElementById("offer").value = user.offer;
+  document.getElementById("contact").value = user.contact;
   updateCoords();
   loadHelpers();
 
@@ -248,46 +174,48 @@ function login() {
   });
 }
 
-function manualLocation() {
-  const i = prompt("City name or coordinates (lat,lon):");
+function openEdit(){
+  document.getElementById("main").classList.toggle("hidden");
+  document.getElementById("edit").classList.toggle("hidden");
+}
+
+function manualLocation(){
+  const i = prompt("City or lat,lon:");
   if(!i) return;
   const p = i.split(/[,\s]+/).map(parseFloat);
-  if Kopiuj(wklej)2 && !isNaN(p[0])) {
-    user.lat = p[0]; user.lon = p[1];
-    saveUser(); updateCoords();
+  if(p.length>=2 && !isNaN(p[0])){
+    user.lat = p[0]; user.lon = p[1]; saveUser(); updateCoords();
   } else {
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(i)}`)
       .then(r=>r.json()).then(d=>{if(d[0]){user.lat=+d[0].lat; user.lon=+d[0].lon; saveUser(); updateCoords();}});
   }
 }
 
-function sendSOS() {
-  if(!user.lat) return alert("Location required");
-  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}\n#RoadKin`;
+function sendSOS(){
+  if(!user.lat) return alert("Set location first");
+  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}`;
   location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 
-function haversine(lat1,lon1,lat2,lon2) {
-  const toRad = x => x * Math.PI / 180;
-  const R = 6371;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+function haversine(a,b,c,d){
+  const toRad=x=>x*Math.PI/180,R=6371;
+  const x1=c-a, x2=d-b;
+  const dLat=toRad(x1), dLon=toRad(x2);
+  const a2 = Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a2),Math.sqrt(1-a2));
 }
 
 window.onload = () => {
-  if(loadUser() && user.name) {
+  if(loadUser() && user.name){
     document.getElementById("login").classList.add("hidden");
     document.getElementById("main").classList.remove("hidden");
-    document.getElementById("logoutBtn").classList.remove("hidden");
     document.getElementById("displayName").textContent = user.name;
     document.getElementById("offer").value = user.offer;
     document.getElementById("contact").value = user.contact;
     updateCoords();
   }
   loadHelpers();
-  setInterval(loadHelpers, 30000);
+  setInterval(loadHelpers,30000);
 };
 </script>
 </body>
