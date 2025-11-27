@@ -8,17 +8,20 @@
   body{font-family:system-ui,sans-serif;background:#111;color:#fff;margin:0;padding:0}
   @media(prefers-color-scheme:light){body{background:#fff;color:#000}}
   #app{max-width:480px;margin:40px auto;padding:20px}
-  h1{text-align:center;color:#c00;margin-bottom:30px}
-  input,textarea{width:100%;padding:16px;margin:10px 0;border-radius:12px;border:none;background:#222;color:#fff;font-size:17px}
+  h1{text-align:center;color:#c00;margin-bottom:20px}
+  .user-bar{background:#222;padding:20px;border-radius:16px;margin-bottom:20px;text-align:center;cursor:pointer}
+  .user-name{font-size:24px;font-weight:700}
+  .coords{font-size:14px;opacity:0.8;margin-top:8px}
   button{width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;font-size:19px;cursor:pointer;font-weight:bold}
   .bigbtn{padding:34px;font-size:26px}
   .sos{background:#b00;animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,0,.8)}70%{box-shadow:0 0 0 40px transparent}100%{box-shadow:0 0 0 0 transparent}}
   .go{background:#0b0}
-  .cancel{background:#900}
-  .hidden{display:none}
   .helper{background:#222;padding:20px;margin:15px 0;border-radius:16px;line-height:1.6}
-  .coords{margin:10px 0;font-size:14px;opacity:0.8}
+  .hidden{display:none}
+  .contact-btn{margin-top:8px;padding:10px 16px;font-size:14px;border-radius:8px;background:#333;display:inline-block}
+  label{display:block;margin:20px 0 8px;font-weight:600}
+  input,textarea{width:100%;padding:16px;border-radius:12px;border:none;background:#333;color:#fff;font-size:17px;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -26,167 +29,187 @@
   <h1>RoadKin</h1>
 
   <div id="login">
-    <input type="text" id="username" placeholder="Your name">
-    <button class="bigbtn" onclick="login()">ENTER</button>
+    <input type="text" id="username" placeholder="Your name or nickname">
+    <button class="bigbtn" onclick="login()">Enter RoadKin</button>
   </div>
 
   <div id="main" class="hidden">
-    <div style="background:#222;padding:20px;border-radius:16px;margin-bottom:20px;text-align:center" onclick="document.getElementById('edit').classList.remove('hidden');document.getElementById('main').classList.add('hidden')">
-      <div style="font-size:24px;font-weight:bold">Hi, <span id="hiName"></span></div>
-      <div class="coords" id="coords">Getting location…</div>
+    <div class="user-bar" onclick="openEdit()">
+      <div class="user-name">Hi, <span id="displayName"></span></div>
+      <div class="coords" id="coordsDisplay">Getting location…</div>
     </div>
 
     <button class="bigbtn sos" onclick="sendSOS()">I NEED HELP NOW</button>
-    <button id="manual" class="bigbtn" onclick="manual()" style="background:#444">Set location manually</button>
+    <button id="manualBtn" class="bigbtn" onclick="manualLocation()" style="background:#444">Set location manually</button>
 
-    <h2>Nearby helpers (<span id="cnt">0</span>)</h2>
-    <div id="list"></div>
+    <h2>Nearby Helpers (<span id="count">0</span>)</h2>
+    <div id="helpers"></div>
   </div>
 
   <div id="edit" class="hidden">
     <h2>What can you offer?</h2>
-    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room…"></textarea>
-    <input type="text" id="contact" placeholder="WhatsApp / email (optional)">
+    <label>Your offer</label>
+    <textarea id="offer" rows="5" placeholder="garage, tools, beer, spare room, welding…"></textarea>
+    <label>Contact (WhatsApp, email, etc.)</label>
+    <input type="text" id="contact" placeholder="+1234567890 or name@email.com">
 
     <button class="bigbtn go" onclick="goLive()">GO LIVE NOW</button>
-    <button class="bigbtn cancel" onclick="back()">Cancel</button>
+    <button class="bigbtn" onclick="openEdit()" style="background:#900">Back without going live</button>
   </div>
 </div>
 
 <script>
-let me = {name:"",lat:null,lon:null,offer:"",contact:""};
+let user = { name: "", lat: null, lon: null, offer: "", contact: "" };
 
-const CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSwAg5Jd9Cknmj0tFKeNG76QOPbCrzttvSmHR7k2Nj6lMZRzZ6XH7yn3hdRbRB2Ss33qSpt3IFo-LO/pub?gid=1578348969&single=true&output=csv';
 
-function save(){localStorage.setItem("rk",JSON.stringify(me))}
-function load(){if(localStorage.getItem("rk")){me=JSON.parse(localStorage.getItem("rk"));return true}return false}
+function saveUser() { localStorage.setItem('roadkin', JSON.stringify(user)); }
+function loadUser() { 
+  const s = localStorage.getItem('roadkin'); 
+  if (s) { user = JSON.parse(s); return true; }
+  return false;
+}
 
-async function getHelpers(){
-  try{
-    let r=await fetch(CSV+"&t="+Date.now());
-    let t=await r.text();
-    let rows=t.split("\n").slice(1).filter(x=>x.trim());
-    let helpers=[];
-    rows.forEach(row=>{
-      let c=row.split(",").map(x=>x.trim().replace(/^"|"$/g,""));
-      if(c.length>=6 && c[5].toLowerCase()==="yes"){
-        helpers.push({name:c[0],lat:+c[1],lon:+c[2],offer:c[3]||"(no text)",contact:c[4]||""});
+async function loadHelpers() {
+  try {
+    const r = await fetch(CSV_URL + '&t=' + Date.now());
+    const text = await r.text();
+    const lines = text.split('\n').slice(1).filter(l => l.trim());
+    const helpers = lines.map(l => {
+      const c = l.split(',').map(x => x.trim().replace(/^"|"$/g,''));
+      if (c.length < 6) return null;
+      return {
+        name: c[0],
+        lat: +c[1],
+        lon: +c[2],
+        offer: c[3] || "Can help",
+        contact: c[4] || "",
+        available: c[5].toLowerCase() === "yes"
+      };
+    }).filter(Boolean);
+
+    const online = helpers.filter(h => h.available);
+    document.getElementById("count").textContent = online.length;
+
+    const list = document.getElementById("helpers");
+    list.innerHTML = "";
+    if (online.length === 0) { list.innerHTML = "<i>No one online yet – be the first!</i>"; return; }
+
+    online.forEach(h => {
+      const div = document.createElement("div");
+      div.className = "helper";
+      const dist = user.lat ? Math.round(haversine(user.lat,user.lon,h.lat,h.lon)) + " km away" : "distance unknown";
+      let contact = "";
+      if (h.contact) {
+        if (h.contact.includes("@")) contact = `<br>${h.contact} <button class="contact-btn" onclick="location.href='mailto:${h.contact}'">Email</button>`;
+        else if (/^\+?\d{8,}$/.test(h.contact.replace(/\D/g,""))) contact = `<br>${h.contact} <button class="contact-btn" onclick="location.href='https://wa.me/${h.contact.replace(/\D/g,"")}'">WhatsApp</button>`;
+        else contact = `<br>${h.contact}`;
       }
+      div.innerHTML = `<strong>${h.name}</strong> – ${dist}<br>${h.offer}${contact}`;
+      list.appendChild(div);
     });
-    showHelpers(helpers);
-  }catch{ document.getElementById("list").innerHTML="<i>No internet</i>"; }
+  } catch(e) {
+    document.getElementById("helpers").innerHTML = "<i>No internet</i>";
+  }
 }
 
-function showHelpers(a){
-  let cnt=a.length;
-  document.getElementById("cnt").textContent=cnt;
-  let html="";
-  a.forEach(h=>{
-    let dist = me.lat ? Math.round(haversine(me.lat,me.lon,h.lat,h.lon))+" km" : "? km";
-    let contact="";
-    if(h.contact){
-      if(h.contact.includes("@")) contact=`<br>${h.contact} <button onclick="location.href='mailto:${h.contact}'" style="padding:6px 12px;margin-top:6px;border-radius:8px;background:#333">Email</button>`;
-      else if(h.contact.replace(/\D/g,"").length>=8) contact=`<br>${h.contact} <button onclick="location.href='https://wa.me/${h.contact.replace(/\D/g,"")}'" style="padding:6px 12px;margin-top:6px;border-radius:8px;background:#333">WhatsApp</button>`;
-      else contact=`<br>${h.contact}`;
-    }
-    }
-    html+=`<div class="helper"><b>${h.name}</b> – ${dist}<br>${h.offer}${contact}</div>`;
+function updateCoords() {
+  const el = document.getElementById("coordsDisplay");
+  const btn = document.getElementById("manualBtn");
+  if (user.lat) {
+    el.textContent = `${user.lat.toFixed(5)}, ${user.lon.toFixed(5)}`;
+    btn.style.display = "none";
+  } else {
+    el.textContent = "Location unknown – tap here to set";
+  }
+}
+
+function goLive() {
+  if (!user.lat) return alert("Please wait for GPS or set location manually first");
+  user.offer = document.getElementById("offer").value.trim() || "Can help";
+  user.contact = document.getElementById("contact").value.trim();
+  saveUser();
+
+  const url = 'https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?' +
+    'entry.2131123748=' + encodeURIComponent(user.name) +
+    '&entry.1563978452=' + user.lat.toFixed(6) +
+    '&entry.1612978471=' + user.lon.toFixed(6) +
+    '&entry.1742973672=' + encodeURIComponent(user.offer) +
+    '&entry.1092196062=' + encodeURIComponent(user.contact) +
+    '&entry.1366145812=yes&usp=pp_url&submit=Submit';
+
+  fetch(url, {method: 'GET', mode: 'no-cors'});
+  alert("You are now LIVE – thank you!");
+  openEdit();
+  setTimeout(loadHelpers, 6000);
+}
+
+function login() {
+  const name = document.getElementById("username").value.trim();
+  if (!name) return alert("Please enter your name");
+  user.name = name;
+  saveUser();
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("main").classList.remove("hidden");
+  document.getElementById("displayName").textContent = name;
+  document.getElementById("offer").value = user.offer;
+  document.getElementById("contact").value = user.contact;
+  updateCoords();
+  loadHelpers();
+
+  navigator.geolocation?.getCurrentPosition(pos => {
+    user.lat = pos.coords.latitude;
+    user.lon = pos.coords.longitude;
+    saveUser();
+    updateCoords();
   });
-  if(cnt===0) html="<i>No one online – be the first!</i>";
-  document.getElementById("list").innerHTML=html;
 }
 
-function login(){
-  let n=document.getElementById("username").value.trim();
-  if(!n){alert("Enter your name");return;}
-  me.name=n;
-  save();
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("main").classList.remove("hidden");
-  document.getElementById("hiName").textContent=n;
-  document.getElementById("offer").value=me.offer;
-  document.getElementById("contact").value=me.contact;
-  updateLoc();
-  getHelpers();
-  setInterval(getHelpers,30000);
+function openEdit() {
+  document.getElementById("main").classList.toggle("hidden");
+  document.getElementById("edit").classList.toggle("hidden");
 }
 
-function updateLoc(){
-  if(me.lat){
-    document.getElementById("coords").textContent=`${me.lat.toFixed(5)}, ${me.lon.toFixed(5)}`;
-    document.getElementById("manual").style.display="none";
-  }else{
-    document.getElementById("coords").textContent="Location unknown";
+function manualLocation() {
+  const input = prompt("Enter city name or coordinates (lat,lon):");
+  if (!input) return;
+  const parts = input.split(/[,\s]+/).map(parseFloat);
+  if (parts.length >= 2 && !isNaN(parts[0])) {
+    user.lat = parts[0]; user.lon = parts[1];
+  } else {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+      .then(r => r.json()).then(data => { if (data[0]) { user.lat = +data[0].lat; user.lon = +data[0].lon; updateCoords(); }});
   }
+  saveUser(); updateCoords();
 }
 
-function manual(){
-  let i=prompt("City or lat,lon:");
-  if(!i)return;
-  let p=i.split(/[,\s]+/).map(parseFloat);
-  if(p.length>=2&&!isNaN(p[0])){
-    me.lat=p[0];me.lon=p[1];
-  }else{
-    fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(i))
-      .then(r=>r.json()).then(j=>{if(j[0]){me.lat=+j[0].lat;me.lon=+j[0].lon;}});
+function sendSOS() {
+  if (!user.lat) return alert("Location required");
+  const msg = `ROADKIN SOS – ${user.name} needs help!\nhttps://maps.google.com/?q=${user.lat},${user.lon}`;
+  location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+}
+
+function haversine(lat1,lon1,lat2,lon2) {
+  const toRad = x => x * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+window.onload = () => {
+  if (loadUser() && user.name) {
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("main").classList.remove("hidden");
+    document.getElementById("displayName").textContent = user.name;
+    document.getElementById("offer").value = user.offer;
+    document.getElementById("contact").value = user.contact;
+    updateCoords();
   }
-  save();updateLoc();
-}
-
-function goLive(){
-  if(!me.lat){alert("Location required");return;}
-  me.offer=document.getElementById("offer").value.trim()||"Can help";
-  me.contact=document.getElementById("contact").value.trim();
-  save();
-
-  let url="https://docs.google.com/forms/d/e/1FAIpQLSenL5h8piDfxmqJgCUW8FiKCVUKksQla_q4Du7ICVZUVIJl6w/formResponse?"+
-    "entry.2131123748="+encodeURIComponent(me.name)+
-    "&entry.1563978452="+me.lat.toFixed(6)+
-    "&entry.1612978471="+me.lon.toFixed(6)+
-    "&entry.1742973672="+encodeURIComponent(me.offer)+
-    "&entry.1092196062="+encodeURIComponent(me.contact)+
-    "&entry.1366145812=yes"+
-    "&usp=pp_url&submit=Submit";
-
-  fetch(url,{method:"GET",mode:"no-cors"});
-  alert("You are now LIVE worldwide!");
-  back();
-  setTimeout(getHelpers,6000);
-}
-
-function back(){
-  document.getElementById("edit").classList.add("hidden");
-  document.getElementById("main").classList.remove("hidden");
-  getHelpers();
-}
-
-function sendSOS(){
-  if(!me.lat){alert("Set location first");return;}
-  let msg=`ROADKIN SOS – ${me.name} needs help!\nhttps://maps.google.com/?q=${me.lat},${me.lon}`;
-  location.href="https://wa.me/?text="+encodeURIComponent(msg);
-}
-
-function haversine(a,b,c,d){
-  let toRad=x=>x*Math.PI/180,R=6371;
-  let dLat=toRad(c-a),dLon=toRad(d-b);
-  let x=Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLon/2)**2;
-  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
-}
-
-navigator.geolocation?.getCurrentPosition(p=>{
-  me.lat=p.coords.latitude;me.lon=p.coords.longitude;save();updateLoc();getHelpers();
-});
-
-if(load()){
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("main").classList.remove("hidden");
-  document.getElementById("hiName").textContent=me.name;
-  document.getElementById("offer").value=me.offer;
-  document.getElementById("contact").value=me.contact;
-  updateLoc();
-  getHelpers();
-  setInterval(getHelpers,30000);
-}
+  loadHelpers();
+  setInterval(loadHelpers, 30000);
+};
 </script>
 </body>
 </html>
